@@ -1,4 +1,4 @@
-package com.example.applicationoverlay
+package com.example.screenrecorder
 
 import org.junit.Test
 

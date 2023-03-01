@@ -1,4 +1,4 @@
-package com.example.applicationoverlay
+package com.example.screenrecorder
 
 import android.app.Service
 import android.content.Intent
@@ -9,9 +9,10 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.provider.Settings
-import android.util.Log
+import android.view.Gravity
 import android.view.WindowManager
 import android.widget.RelativeLayout
+import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -50,20 +51,23 @@ class MainActivity : AppCompatActivity() {
             super.onCreate()
 
             val params = WindowManager.LayoutParams(
-                50,
-                50,
+                LayoutParams.MATCH_PARENT,
+                100,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             )
-            params.horizontalMargin = 50.0.toFloat()
-            params.verticalMargin = 50.0.toFloat()
+            params.gravity = Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
+            //params.horizontalMargin = 50.0.toFloat()
+            //params.verticalMargin = 50.0.toFloat()
 
             // https://stackoverflow.com/questions/6446221/get-context-in-a-service
             overlay = RelativeLayout(this)
-            overlay!!.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_500))
+            overlay!!.setBackgroundColor(ContextCompat.getColor(this, R.color.black))
+            overlay!!.alpha = 0.50f
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
             windowManager!!.addView(overlay, params)
+
             val hand = Handler()
         }
 

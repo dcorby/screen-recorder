@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.applicationoverlay'
+    namespace 'com.example.screenrecorder'
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.example.applicationoverlay"
+        applicationId "com.example.screenrecorder"
         minSdk 21
         targetSdk 33
         versionCode 1
