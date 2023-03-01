@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.media.Image
 import android.net.Uri
+import android.opengl.Visibility
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -85,7 +86,6 @@ class MainActivity : AppCompatActivity() {
                     LinearLayout(this).let { left ->
                         val params = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f)
                         left.layoutParams = params
-                        // color for test
                         //left.setBackgroundColor(ContextCompat.getColor(this, R.color.pastel_blue))
                         left.setBackgroundColor(Color.parseColor("#00FFFFFF"))
                         layout.addView(left)
@@ -113,12 +113,46 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     // Create the center panel (record button)
-                    RelativeLayout(this).let { center ->
+                    LinearLayout(this).let { center ->
                         val params = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f)
                         center.layoutParams = params
-                        // color for test
-                        center.setBackgroundColor(ContextCompat.getColor(this, R.color.pastel_green))
+                        center.orientation = LinearLayout.HORIZONTAL
+                        center.gravity = Gravity.CENTER
+                        //center.setBackgroundColor(ContextCompat.getColor(this, R.color.pastel_green))
+                        center.setBackgroundColor(Color.parseColor("#00FFFFFF"))
                         layout.addView(center)
+
+                        // Add a 100x100 frame to the center, and add both record states to that frame
+                        FrameLayout(this).let { frame ->
+                            val params = FrameLayout.LayoutParams(100, 100)
+                            params.gravity = Gravity.CENTER
+                            frame.setBackgroundColor(Color.parseColor("#00FFFFFF"))
+                            frame.layoutParams = params
+                            center.addView(frame)
+
+                            // Add the record image
+                            ImageView(this).let { image ->
+                                val params = LinearLayout.LayoutParams(80, 80)
+                                //params.leftMargin = 10
+                                //params.topMargin = 10
+                                params.setMargins(10, 10, 10, 10)
+                                image.background = ContextCompat.getDrawable(this, R.drawable.record)
+                                frame.layoutParams = params
+                                frame.addView(image)
+                            }
+
+                            // Add the recordING image
+                            ImageView(this).let { image ->
+                                val params = LinearLayout.LayoutParams(80, 80)
+                                //params.leftMargin = 10
+                                //params.topMargin = 10
+                                params.setMargins(10, 10, 10, 10)
+                                image.visibility = LinearLayout.GONE
+                                image.background = ContextCompat.getDrawable(this, R.drawable.recording)
+                                frame.layoutParams = params
+                                frame.addView(image)
+                            }
+                        }
                     }
 
                     // Create the right panel (X to close)
