@@ -26,12 +26,12 @@ class MainActivity : AppCompatActivity() {
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
             )
-            Log.v("TEST", "1")
             startActivityForResult(intent, 1)
         } else {
-            Log.v("TEST", "2")
             startService(Intent(this, Overlay::class.java))
         }
+        /* TODO show a toast notification to user knows it's running */
+        finish()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -41,13 +41,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-
-
-
-
-
-
     class Overlay() : Service() {
         private var overlay: RelativeLayout? = null
         private var windowManager: WindowManager? = null
@@ -55,8 +48,6 @@ class MainActivity : AppCompatActivity() {
         @RequiresApi(Build.VERSION_CODES.O)
         override fun onCreate() {
             super.onCreate()
-
-            Log.v("TEST", "onCreate() called")
 
             val params = WindowManager.LayoutParams(
                 50,
@@ -84,7 +75,6 @@ class MainActivity : AppCompatActivity() {
             /* We want this service to continue running until it is explicitly
             * stopped, so return sticky.
             */
-            Log.v("TEST", "onStartCommand()")
             return START_STICKY
         }
 
@@ -100,6 +90,5 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
 }
 

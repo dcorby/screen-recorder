@@ -16,10 +16,13 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.ApplicationOverlay.NoActionBar">
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <!--
+            https://stackoverflow.com/questions/10909683/launch-android-application-without-main-activity-and-start-service-on-launching
+            Theme.NoDisplay wouldn't show service either
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
@@ -29,8 +32,6 @@
         </activity>
         <service android:enabled="true" android:name="com.example.applicationoverlay.MainActivity$Overlay" />
     </application>
-
-
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
