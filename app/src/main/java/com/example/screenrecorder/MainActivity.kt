@@ -15,14 +15,12 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
-import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.RelativeLayout
+import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.marginRight
 
 class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -122,9 +120,31 @@ class MainActivity : AppCompatActivity() {
                         center.setBackgroundColor(Color.parseColor("#00FFFFFF"))
                         layout.addView(center)
 
-                        // Add a 100x100 frame to the center, and add both record states to that frame
+                        // Add 3 views to center, l-frame-r
+                        LinearLayout(this).let { l ->
+                            val params = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f)
+                            l.layoutParams = params
+                            l.gravity = Gravity.RIGHT
+                            //l.setBackgroundColor(ContextCompat.getColor(this, R.color.pastel_blue))
+                            TextView(this).let { textView ->
+                                textView.text = "00:00:00"
+                                textView.setTextColor(Color.parseColor("#eeeeee"))
+                                textView.textSize = 18f
+                                val params = LinearLayout.LayoutParams(
+                                    LayoutParams.WRAP_CONTENT,
+                                    LayoutParams.MATCH_PARENT
+                                )
+                                params.rightMargin = 10
+                                textView.gravity = Gravity.CENTER_VERTICAL
+                                textView.layoutParams = params
+                                l.addView(textView)
+                            }
+                            center.addView(l)
+                        }
+
+                        // Add a 100x100 frame, and add both record states to that frame
                         FrameLayout(this).let { frame ->
-                            val params = FrameLayout.LayoutParams(100, 100)
+                            val params = LinearLayout.LayoutParams(100, 100, 0.0f)
                             params.gravity = Gravity.CENTER
                             frame.setBackgroundColor(Color.parseColor("#00FFFFFF"))
                             frame.layoutParams = params
@@ -152,6 +172,12 @@ class MainActivity : AppCompatActivity() {
                                 frame.layoutParams = params
                                 frame.addView(image)
                             }
+                        }
+
+                        RelativeLayout(this).let { r ->
+                            val params = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f)
+                            r.layoutParams = params
+                            center.addView(r)
                         }
                     }
 
