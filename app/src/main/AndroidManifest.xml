@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools" >
+
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:allowBackup="true"
@@ -11,12 +13,26 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ScreenRecorder"
-        tools:targetApi="33">
+        tools:targetApi="33" >
+
+        <activity
+            android:name=".PermissionActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true">
+        </activity>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true">
+            <!--
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" >
+            -->
+
             <!--
             https://stackoverflow.com/questions/10909683/launch-android-application-without-main-activity-and-start-service-on-launching
             Theme.NoDisplay wouldn't show service either
@@ -30,9 +46,9 @@
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
-        <service android:enabled="true" android:name="com.example.screenrecorder.MainActivity$Overlay" />
+
+        <service
+            android:name=".MainActivity$Overlay"
+            android:enabled="true" />
     </application>
-
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-
 </manifest>
