@@ -19,8 +19,11 @@
             android:name=".PermissionActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@android:style/Theme.NoDisplay"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true">
+            <!-- Why this theme? finish() bug in activity...
+                https://stackoverflow.com/questions/32169303/activity-did-not-call-finish-api-23
+                -->
         </activity>
 
         <activity

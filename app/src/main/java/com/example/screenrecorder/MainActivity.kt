@@ -14,15 +14,17 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.os.IBinder
 import android.provider.Settings
+import android.util.DisplayMetrics
+import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
 import java.io.IOException
 
@@ -33,6 +35,7 @@ import java.io.IOException
 class MediaProjectionCompanion {
     companion object {
         var mediaProjectionManager: MediaProjectionManager? = null
+        var mediaProjection: MediaProjection? = null
     }
 }
 
@@ -49,15 +52,31 @@ class PermissionActivity : Activity() {
             Toast.makeText(this, "Screen Recording Permission Denied", Toast.LENGTH_SHORT).show()
             return
         }
+        mediaProjection = mediaProjectionManager!!.getMediaProjection(resultCode, data!!);
+        // Hmm!! https://stackoverflow.com/questions/32169303/activity-did-not-call-finish-api-23
         finish()
     }
 }
 
 class MainActivity : Activity() {
 
+    private val displayMetrics: DisplayMetrics = DisplayMetrics()
+    private lateinit var serviceIntent: Intent
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Get permissions
+        val intent = Intent(this, PermissionActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+
+        // Set intent and put display metrics
+        serviceIntent = Intent(this, Overlay::class.java)
+        windowManager.getDefaultDisplay().getMetrics(displayMetrics)
+        serviceIntent.putExtra("width", displayMetrics.widthPixels)
+        serviceIntent.putExtra("height", displayMetrics.heightPixels)
 
         if (!Settings.canDrawOverlays(this)) {
             val intent = Intent(
@@ -66,8 +85,7 @@ class MainActivity : Activity() {
             )
             startActivityForResult(intent, 1)
         } else {
-
-            startService(Intent(this, Overlay::class.java))
+            startService(serviceIntent)
         }
         finish()
     }
@@ -75,7 +93,7 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 1) {
-            startService(Intent(this, Overlay::class.java))
+            startService(serviceIntent)
         }
     }
 
@@ -89,10 +107,11 @@ class MainActivity : Activity() {
 
         // Properties related to the screen recording
         private var isRecording = false
-        private lateinit var mediaProjection: MediaProjection
         private lateinit var virtualDisplay: VirtualDisplay
         private lateinit var mediaProjectionCallback: MediaProjectionCallback
-        private lateinit var mediaRecorder: MediaRecorder
+        private var mediaRecorder = MediaRecorder()
+        private var screenWidth = -1
+        private var screenHeight = -1
 
         @RequiresApi(Build.VERSION_CODES.O)
         override fun onCreate() {
@@ -262,28 +281,29 @@ class MainActivity : Activity() {
         }
 
         private fun startRecording() {
-            try {
-                mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
-                mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                mediaRecorder.setOutputFile(Environment.getExternalStorageDirectory().toString() + "/video.mp4")
-                mediaRecorder.setVideoSize(500, 500)
-                mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-                mediaRecorder.setVideoEncodingBitRate(512 * 1_000)
-                mediaRecorder.setVideoFrameRate(16)
-                mediaRecorder.setVideoEncodingBitRate(3_000_000)
-                mediaRecorder.setOrientationHint(0)
-                mediaRecorder.prepare()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
+            //mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+            mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            //mediaRecorder.setOutputFile(Environment.getExternalStorageDirectory().toString() + "/video.mp4")
+            mediaRecorder.setOutputFile(this.filesDir.toString() + "/video.mp4")
+            mediaRecorder.setVideoSize(screenWidth, screenHeight)
+            mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            //mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+            mediaRecorder.setVideoEncodingBitRate(512 * 1_000)
+            mediaRecorder.setVideoFrameRate(16)
+            mediaRecorder.setVideoEncodingBitRate(3_000_000)
+            mediaRecorder.setOrientationHint(0)
+            mediaRecorder.prepare()
 
-            mediaProjection.registerCallback(mediaProjectionCallback, null)
-            virtualDisplay = mediaProjection.createVirtualDisplay(
+            mediaProjectionCallback = MediaProjectionCallback()
+            mediaProjection!!.registerCallback(mediaProjectionCallback, null)
+            virtualDisplay = mediaProjection!!.createVirtualDisplay(
                 "MainActivity",
-                500,
-                500,
-                2,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                screenWidth,
+                screenHeight,
+                getDpi(),
+                //DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,
                 mediaRecorder.surface,
                 null,
                 null
@@ -294,11 +314,17 @@ class MainActivity : Activity() {
 
         private fun stopRecording() {
             virtualDisplay.release()
-            mediaProjection.unregisterCallback(mediaProjectionCallback)
-            mediaProjection.stop()
+            mediaProjection!!.unregisterCallback(mediaProjectionCallback)
+            mediaProjection!!.stop()
             mediaRecorder.stop()
             mediaRecorder.reset()
             isRecording = false
+        }
+
+        private fun getDpi() : Int {
+            val metrics = DisplayMetrics()
+            windowManager.defaultDisplay.getMetrics(metrics)
+            return metrics.densityDpi
         }
 
         private inner class MediaProjectionCallback : MediaProjection.Callback() {
@@ -333,6 +359,10 @@ class MainActivity : Activity() {
         }
 
         override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+            if (intent != null) {
+                screenWidth = intent.getIntExtra("width", -1)
+                screenHeight = intent.getIntExtra("height", -1)
+            }
             return START_STICKY
         }
 
