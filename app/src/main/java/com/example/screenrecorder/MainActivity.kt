@@ -112,6 +112,7 @@ class MainActivity : Activity() {
         private var mediaRecorder = MediaRecorder()
         private var screenWidth = -1
         private var screenHeight = -1
+        private var hideLayout = false
 
         @RequiresApi(Build.VERSION_CODES.O)
         override fun onCreate() {
@@ -243,6 +244,28 @@ class MainActivity : Activity() {
                     RelativeLayout(this).let { r ->
                         val params = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f)
                         r.layoutParams = params
+                        LinearLayout(this).let { hide ->
+                            hide.orientation = LinearLayout.HORIZONTAL
+                            CheckBox(this).let { checkBox ->
+                                checkBox.buttonTintList = ContextCompat.getColorStateList(this, R.color.white)
+                                hide.addView(checkBox)
+                                checkBox.setOnCheckedChangeListener { buttonView, isChecked ->
+                                    hideLayout = !isChecked
+                                }
+                            }
+                            TextView(this).let { textView ->
+                                textView.text = "Hide"
+                                textView.setTextColor(Color.parseColor("#eeeeee"))
+                                hide.addView(textView)
+                            }
+                            val params = LinearLayout.LayoutParams(
+                                LayoutParams.WRAP_CONTENT,
+                                LayoutParams.MATCH_PARENT)
+                            params.leftMargin = 25
+                            hide.layoutParams = params
+                            hide.gravity = Gravity.CENTER_VERTICAL
+                            r.addView(hide)
+                        }
                         center.addView(r)
                     }
                 }
