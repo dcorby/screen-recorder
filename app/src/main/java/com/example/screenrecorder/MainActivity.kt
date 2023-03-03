@@ -1,5 +1,6 @@
 package com.example.screenrecorder
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Service
 import android.content.Context
@@ -18,15 +19,13 @@ import android.os.IBinder
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
-import android.view.Gravity
-import android.view.WindowManager
+import android.view.*
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
-import java.io.IOException
 
 // https://android.googlesource.com/platform/development/+/master/samples/ApiDemos/src/com/example/android/apis/media/projection/MediaProjectionDemo.java
 // https://github.com/Mercandj/screen-recorder-android/blob/master/app/src/main/java/com/mercandalli/android/apps/screen_recorder/main/MainActivity.kt
@@ -250,7 +249,7 @@ class MainActivity : Activity() {
                                 checkBox.buttonTintList = ContextCompat.getColorStateList(this, R.color.white)
                                 hide.addView(checkBox)
                                 checkBox.setOnCheckedChangeListener { buttonView, isChecked ->
-                                    hideLayout = !isChecked
+                                    hideLayout = isChecked
                                 }
                             }
                             TextView(this).let { textView ->
@@ -290,10 +289,37 @@ class MainActivity : Activity() {
             }
         }
 
+        class PanelLayout(context: Context) : RelativeLayout(context) {
+            var lastTouch: Long = 0
+            override fun onTouchEvent(event: MotionEvent?): Boolean {
+                if (lastTouch > 0 && System.currentTimeMillis() - lastTouch < 1000) {
+                    Log.v("TEST", "double click")
+                }
+                lastTouch = System.currentTimeMillis()
+                return super.onTouchEvent(event)
+            }
+        }
+
+        @SuppressLint("ClickableViewAccessibility")
         private fun record(imageView: ImageView) {
             if (imageView.tag.toString() == "record") {
                 record?.visibility = LinearLayout.GONE
                 recording?.visibility = LinearLayout.VISIBLE
+                if (hideLayout) {
+                    windowManager.removeView(overlay)
+                    val panel = PanelLayout(this)
+                    overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
+                    //overlay.alpha = 0.50f
+                    overlay.setBackgroundColor(Color.parseColor("#00000000"))
+                    val params = WindowManager.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                        -999,
+                        PixelFormat.TRANSLUCENT
+                    )
+                    windowManager.addView(panel, params)
+                }
                 startRecording()
             }
             if (imageView.tag.toString() == "recording") {
@@ -304,14 +330,11 @@ class MainActivity : Activity() {
         }
 
         private fun startRecording() {
-            //mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
             mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
             mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            //mediaRecorder.setOutputFile(Environment.getExternalStorageDirectory().toString() + "/video.mp4")
             mediaRecorder.setOutputFile(this.filesDir.toString() + "/video.mp4")
             mediaRecorder.setVideoSize(screenWidth, screenHeight)
             mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-            //mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
             mediaRecorder.setVideoEncodingBitRate(512 * 1_000)
             mediaRecorder.setVideoFrameRate(16)
             mediaRecorder.setVideoEncodingBitRate(3_000_000)
