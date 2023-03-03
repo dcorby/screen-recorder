@@ -25,9 +25,9 @@ import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.example.screenrecorder.databinding.ActivityBrowserBinding
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
+import com.example.screenrecorder.databinding.ActivityBrowserBinding
 
 // https://android.googlesource.com/platform/development/+/master/samples/ApiDemos/src/com/example/android/apis/media/projection/MediaProjectionDemo.java
 // https://github.com/Mercandj/screen-recorder-android/blob/master/app/src/main/java/com/mercandalli/android/apps/screen_recorder/main/MainActivity.kt
@@ -43,25 +43,6 @@ class MediaProjectionCompanion {
     }
 }
 
-//class PermissionActivity : Activity() {
-//    @RequiresApi(Build.VERSION_CODES.O)
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-//        startActivityForResult(mediaProjectionManager!!.createScreenCaptureIntent(), SCREEN_CAPTURE_PERMISSION_CODE)
-//    }
-//    public override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-//        super.onActivityResult(requestCode, resultCode, data)
-//        if (resultCode != Activity.RESULT_OK) {
-//            Toast.makeText(this, "Screen Recording Permission Denied", Toast.LENGTH_SHORT).show()
-//            return
-//        }
-//        mediaProjection = mediaProjectionManager!!.getMediaProjection(resultCode, data!!);
-//        // Hmm!! https://stackoverflow.com/questions/32169303/activity-did-not-call-finish-api-23
-//        finish()
-//    }
-//}
-
 class BrowserActivity: AppCompatActivity() {
 
     private lateinit var binding: ActivityBrowserBinding
@@ -71,6 +52,8 @@ class BrowserActivity: AppCompatActivity() {
 
         binding = ActivityBrowserBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        val toolbar = binding.toolbar
+        setSupportActionBar(toolbar)
     }
 }
 
@@ -83,13 +66,8 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Get permissions
-        //val intent = Intent(this, PermissionActivity::class.java)
         mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         startActivityForResult(mediaProjectionManager!!.createScreenCaptureIntent(), SCREEN_CAPTURE_PERMISSION_CODE)
-        //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        //startActivity(intent)    // TODO: startActivityForResult and allow user to decline, then finish()
-        //startActivityForResult(intent, SCREEN_CAPTURE_PERMISSION_CODE)
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -123,23 +101,11 @@ class MainActivity : Activity() {
         }
 
         if (requestCode == OVERLAY_PERMISSION_CODE) {
-
-            /*
-            "And the Result method, The intent will not return any data to the onActivityResult method.
-            It's best practice to check for overlay permission once again in the onActivityResult method"
-            https://stackoverflow.com/questions/44179407/settings-action-manage-overlay-permission-permission-is-not-working-in-all-devic
-             */
-
             if (!Settings.canDrawOverlays(this)) {
                 Toast.makeText(this, "Overlay Permission Denied", Toast.LENGTH_SHORT).show()
                 finish()
                 return
             }
-            //if (resultCode != Activity.RESULT_OK) {
-            //    Toast.makeText(this, "Overlay Permission Denied", Toast.LENGTH_SHORT).show()
-            //    finish()
-            //    return
-            //}
             startService(serviceIntent)
             finish()
         }

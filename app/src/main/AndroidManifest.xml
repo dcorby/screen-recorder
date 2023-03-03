@@ -61,7 +61,8 @@
         <activity
             android:name=".BrowserActivity"
             android:exported="true"
-            android:excludeFromRecents="true">
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.ScreenRecorder.NoActionBar">
         </activity>
 
     </application>
