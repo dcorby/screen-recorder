@@ -33,6 +33,9 @@ import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjec
 // https://github.com/Mercandj/screen-recorder-android/blob/master/app/src/main/java/com/mercandalli/android/apps/screen_recorder/main/MainActivity.kt
 // https://stackoverflow.com/questions/32381455/android-mediaprojectionmanager-in-service
 
+const val SCREEN_CAPTURE_PERMISSION_CODE = 1
+const val OVERLAY_PERMISSION_CODE = 2
+
 class MediaProjectionCompanion {
     companion object {
         var mediaProjectionManager: MediaProjectionManager? = null
@@ -40,24 +43,24 @@ class MediaProjectionCompanion {
     }
 }
 
-class PermissionActivity : Activity() {
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        startActivityForResult(mediaProjectionManager!!.createScreenCaptureIntent(), 1)
-    }
-    public override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != Activity.RESULT_OK) {
-            Toast.makeText(this, "Screen Recording Permission Denied", Toast.LENGTH_SHORT).show()
-            return
-        }
-        mediaProjection = mediaProjectionManager!!.getMediaProjection(resultCode, data!!);
-        // Hmm!! https://stackoverflow.com/questions/32169303/activity-did-not-call-finish-api-23
-        finish()
-    }
-}
+//class PermissionActivity : Activity() {
+//    @RequiresApi(Build.VERSION_CODES.O)
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+//        startActivityForResult(mediaProjectionManager!!.createScreenCaptureIntent(), SCREEN_CAPTURE_PERMISSION_CODE)
+//    }
+//    public override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+//        super.onActivityResult(requestCode, resultCode, data)
+//        if (resultCode != Activity.RESULT_OK) {
+//            Toast.makeText(this, "Screen Recording Permission Denied", Toast.LENGTH_SHORT).show()
+//            return
+//        }
+//        mediaProjection = mediaProjectionManager!!.getMediaProjection(resultCode, data!!);
+//        // Hmm!! https://stackoverflow.com/questions/32169303/activity-did-not-call-finish-api-23
+//        finish()
+//    }
+//}
 
 class BrowserActivity: AppCompatActivity() {
 
@@ -68,7 +71,6 @@ class BrowserActivity: AppCompatActivity() {
 
         binding = ActivityBrowserBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
     }
 }
 
@@ -82,32 +84,64 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         // Get permissions
-        val intent = Intent(this, PermissionActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
-
-        // Set intent and put display metrics
-        serviceIntent = Intent(this, Overlay::class.java)
-        windowManager.getDefaultDisplay().getMetrics(displayMetrics)
-        serviceIntent.putExtra("width", displayMetrics.widthPixels)
-        serviceIntent.putExtra("height", displayMetrics.heightPixels)
-
-        if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            )
-            startActivityForResult(intent, 1)
-        } else {
-            startService(serviceIntent)
-        }
-        finish()
+        //val intent = Intent(this, PermissionActivity::class.java)
+        mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        startActivityForResult(mediaProjectionManager!!.createScreenCaptureIntent(), SCREEN_CAPTURE_PERMISSION_CODE)
+        //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        //startActivity(intent)    // TODO: startActivityForResult and allow user to decline, then finish()
+        //startActivityForResult(intent, SCREEN_CAPTURE_PERMISSION_CODE)
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 1) {
+        if (requestCode == SCREEN_CAPTURE_PERMISSION_CODE) {
+
+            if (resultCode != Activity.RESULT_OK) {
+                Toast.makeText(this, "Screen Recording Permission Denied", Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
+            mediaProjection = mediaProjectionManager!!.getMediaProjection(resultCode, data!!);
+
+            // Set intent and put display metrics
+            serviceIntent = Intent(this, Overlay::class.java)
+            windowManager.getDefaultDisplay().getMetrics(displayMetrics)
+            serviceIntent.putExtra("width", displayMetrics.widthPixels)
+            serviceIntent.putExtra("height", displayMetrics.heightPixels)
+
+            if (!Settings.canDrawOverlays(this)) {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+                startActivityForResult(intent, OVERLAY_PERMISSION_CODE)
+            } else {
+                startService(serviceIntent)
+                finish()
+            }
+        }
+
+        if (requestCode == OVERLAY_PERMISSION_CODE) {
+
+            /*
+            "And the Result method, The intent will not return any data to the onActivityResult method.
+            It's best practice to check for overlay permission once again in the onActivityResult method"
+            https://stackoverflow.com/questions/44179407/settings-action-manage-overlay-permission-permission-is-not-working-in-all-devic
+             */
+
+            if (!Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "Overlay Permission Denied", Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
+            //if (resultCode != Activity.RESULT_OK) {
+            //    Toast.makeText(this, "Overlay Permission Denied", Toast.LENGTH_SHORT).show()
+            //    finish()
+            //    return
+            //}
             startService(serviceIntent)
+            finish()
         }
     }
 
