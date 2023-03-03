@@ -23,7 +23,9 @@ import android.view.*
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.example.screenrecorder.databinding.ActivityBrowserBinding
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
 
@@ -54,6 +56,19 @@ class PermissionActivity : Activity() {
         mediaProjection = mediaProjectionManager!!.getMediaProjection(resultCode, data!!);
         // Hmm!! https://stackoverflow.com/questions/32169303/activity-did-not-call-finish-api-23
         finish()
+    }
+}
+
+class BrowserActivity: AppCompatActivity() {
+
+    private lateinit var binding: ActivityBrowserBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        binding = ActivityBrowserBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
     }
 }
 
@@ -289,11 +304,22 @@ class MainActivity : Activity() {
             }
         }
 
-        class PanelLayout(context: Context) : RelativeLayout(context) {
+        private fun launchBrowser() {
+            // Start the BrowserActivity
+            val intent = Intent(this, BrowserActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+
+            // Exit the service
+            Log.v("TEST", "service exited")
+            exit()
+        }
+
+        class PanelLayout(context: Context, var stopRecording: (() -> Unit)) : RelativeLayout(context) {
             var lastTouch: Long = 0
             override fun onTouchEvent(event: MotionEvent?): Boolean {
                 if (lastTouch > 0 && System.currentTimeMillis() - lastTouch < 1000) {
-                    Log.v("TEST", "double click")
+                    stopRecording()
                 }
                 lastTouch = System.currentTimeMillis()
                 return super.onTouchEvent(event)
@@ -307,7 +333,7 @@ class MainActivity : Activity() {
                 recording?.visibility = LinearLayout.VISIBLE
                 if (hideLayout) {
                     windowManager.removeView(overlay)
-                    val panel = PanelLayout(this)
+                    val panel = PanelLayout(this, ::stopRecording)
                     overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
                     //overlay.alpha = 0.50f
                     overlay.setBackgroundColor(Color.parseColor("#00000000"))
@@ -359,12 +385,16 @@ class MainActivity : Activity() {
         }
 
         private fun stopRecording() {
-            virtualDisplay.release()
-            mediaProjection!!.unregisterCallback(mediaProjectionCallback)
-            mediaProjection!!.stop()
-            mediaRecorder.stop()
-            mediaRecorder.reset()
-            isRecording = false
+            if (isRecording) {
+                virtualDisplay.release()
+                mediaProjection!!.unregisterCallback(mediaProjectionCallback)
+                mediaProjection!!.stop()
+                mediaRecorder.stop()
+                mediaRecorder.reset()
+                isRecording = false
+                Log.v("TEST", "launchBrowser()")
+                launchBrowser()
+            }
         }
 
         private fun getDpi() : Int {

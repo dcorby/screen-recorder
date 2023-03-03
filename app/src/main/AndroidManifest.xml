@@ -53,5 +53,12 @@
         <service
             android:name=".MainActivity$Overlay"
             android:enabled="true" />
+
+        <activity
+            android:name=".BrowserActivity"
+            android:exported="true"
+            android:excludeFromRecents="true">
+        </activity>
+
     </application>
 </manifest>
