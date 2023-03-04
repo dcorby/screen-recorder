@@ -29,10 +29,6 @@ import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjec
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
 import com.example.screenrecorder.databinding.ActivityBrowserBinding
 
-// https://android.googlesource.com/platform/development/+/master/samples/ApiDemos/src/com/example/android/apis/media/projection/MediaProjectionDemo.java
-// https://github.com/Mercandj/screen-recorder-android/blob/master/app/src/main/java/com/mercandalli/android/apps/screen_recorder/main/MainActivity.kt
-// https://stackoverflow.com/questions/32381455/android-mediaprojectionmanager-in-service
-
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
 const val OVERLAY_PERMISSION_CODE = 2
 
@@ -52,8 +48,25 @@ class BrowserActivity: AppCompatActivity() {
 
         binding = ActivityBrowserBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        val toolbar = binding.toolbar
-        setSupportActionBar(toolbar)
+        setSupportActionBar(binding.toolbar)
+
+        ImageView(this).let { image ->
+            val params = RelativeLayout.LayoutParams(60, 60)
+            binding.toolbarLayout.gravity = Gravity.CENTER_VERTICAL
+            params.rightMargin = 30
+            image.layoutParams = params
+            image.setImageResource(R.drawable.ic_baseline_close_white_100)
+            binding.toolbarLayout.addView(image)
+            image.setOnClickListener {
+                val serviceIntent = Intent(this, MainActivity.Overlay::class.java)
+                val displayMetrics: DisplayMetrics = DisplayMetrics()
+                windowManager.getDefaultDisplay().getMetrics(displayMetrics)
+                serviceIntent.putExtra("width", displayMetrics.widthPixels)
+                serviceIntent.putExtra("height", displayMetrics.heightPixels)
+                finish()
+                startService(serviceIntent)
+            }
+        }
     }
 }
 
@@ -118,6 +131,7 @@ class MainActivity : Activity() {
         private lateinit var windowManager: WindowManager
         private lateinit var record: ImageView
         private lateinit var recording: ImageView
+        private lateinit var openFull: ImageView
 
         // Properties related to the screen recording
         private var isRecording = false
@@ -167,16 +181,21 @@ class MainActivity : Activity() {
 
                     // Add the "open full" icon
                     ImageView(this).let { image ->
+                        openFull = image
                         val params = RelativeLayout.LayoutParams(60, 60)
                         params.leftMargin = 30
                         params.topMargin = 20
                         image.layoutParams = params
                         image.setImageResource(R.drawable.ic_baseline_open_in_full_100)
                         //image.setBackgroundColor(Color.parseColor("#80FFFFFF"))
+                        image.setOnClickListener {
+                            launchBrowser()
+                        }
                         left.addView(image)
                     }
 
                     //val imageCurrent
+                    /*
                     ImageView(this).let { image ->
                         val params = RelativeLayout.LayoutParams(80, 80)
                         params.leftMargin = 50
@@ -185,6 +204,7 @@ class MainActivity : Activity() {
                         image.layoutParams = params
                         left.addView(image)
                     }
+                    */
                 }
 
                 // Create the center panel (record button)
@@ -309,9 +329,6 @@ class MainActivity : Activity() {
             val intent = Intent(this, BrowserActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
-
-            // Exit the service
-            Log.v("TEST", "service exited")
             exit()
         }
 
@@ -332,7 +349,7 @@ class MainActivity : Activity() {
                 record?.visibility = LinearLayout.GONE
                 recording?.visibility = LinearLayout.VISIBLE
                 if (hideLayout) {
-                    windowManager.removeView(overlay)
+                    //windowManager.removeView(overlay)
                     val panel = PanelLayout(this, ::stopRecording)
                     overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
                     //overlay.alpha = 0.50f
@@ -356,6 +373,7 @@ class MainActivity : Activity() {
         }
 
         private fun startRecording() {
+            openFull.visibility = RelativeLayout.INVISIBLE
             mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
             mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             mediaRecorder.setOutputFile(this.filesDir.toString() + "/video.mp4")
@@ -392,7 +410,6 @@ class MainActivity : Activity() {
                 mediaRecorder.stop()
                 mediaRecorder.reset()
                 isRecording = false
-                Log.v("TEST", "launchBrowser()")
                 launchBrowser()
             }
         }
