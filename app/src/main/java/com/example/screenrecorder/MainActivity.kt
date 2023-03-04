@@ -25,6 +25,7 @@ import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.recyclerview.widget.RecyclerView
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
@@ -45,6 +46,7 @@ class BrowserActivity: AppCompatActivity() {
 
     private lateinit var binding: ActivityBrowserBinding
     private lateinit var videosAdapter: VideosAdapter
+    private var currentVideo: Video? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,10 +84,30 @@ class BrowserActivity: AppCompatActivity() {
             }
         }
         videosAdapter.submitList(videos)
+
+        binding.play.setOnClickListener { play() }
+        binding.pause.setOnClickListener { pause() }
     }
 
     private fun adapterOnClick(video: Video) {
-        Log.v("TEST", "clicked for video=${video.label}")
+        currentVideo = video
+    }
+
+    private fun play() {
+        if (currentVideo == null) {
+            Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
+        } else {
+            binding.videoView.visibility = RelativeLayout.VISIBLE
+            binding.recyclerView.visibility = RelativeLayout.GONE
+            binding.videoView.setMediaController(MediaController(this))
+            binding.videoView.setVideoURI(currentVideo!!.file.toUri())
+            binding.videoView.requestFocus()
+            binding.videoView.start()
+        }
+    }
+
+    private fun pause() {
+        binding.videoView.pause()
     }
 }
 
@@ -403,7 +425,6 @@ class MainActivity : Activity() {
             mediaRecorder.setVideoEncodingBitRate(3_000_000)
             mediaRecorder.setOrientationHint(0)
             mediaRecorder.prepare()
-
             mediaProjectionCallback = MediaProjectionCallback()
             mediaProjection!!.registerCallback(mediaProjectionCallback, null)
             virtualDisplay = mediaProjection!!.createVirtualDisplay(
@@ -417,6 +438,7 @@ class MainActivity : Activity() {
                 null,
                 null
             )
+            mediaRecorder.setPreviewDisplay(mediaRecorder.surface)
             mediaRecorder.start()
             isRecording = true
         }
