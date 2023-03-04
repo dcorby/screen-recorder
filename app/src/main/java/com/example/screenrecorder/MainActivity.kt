@@ -332,11 +332,11 @@ class MainActivity : Activity() {
             exit()
         }
 
-        class PanelLayout(context: Context, var stopRecording: (() -> Unit)) : RelativeLayout(context) {
+        class PanelLayout(context: Context, var stopRecording: ((Boolean) -> Unit)) : RelativeLayout(context) {
             var lastTouch: Long = 0
             override fun onTouchEvent(event: MotionEvent?): Boolean {
                 if (lastTouch > 0 && System.currentTimeMillis() - lastTouch < 1000) {
-                    stopRecording()
+                    stopRecording(true)
                 }
                 lastTouch = System.currentTimeMillis()
                 return super.onTouchEvent(event)
@@ -349,11 +349,11 @@ class MainActivity : Activity() {
                 record?.visibility = LinearLayout.GONE
                 recording?.visibility = LinearLayout.VISIBLE
                 if (hideLayout) {
-                    //windowManager.removeView(overlay)
+                    windowManager.removeView(overlay)
                     val panel = PanelLayout(this, ::stopRecording)
-                    overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
                     //overlay.alpha = 0.50f
-                    overlay.setBackgroundColor(Color.parseColor("#00000000"))
+                    //overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
+                    //overlay.setBackgroundColor(Color.parseColor("#00000000"))
                     val params = WindowManager.LayoutParams(
                         LayoutParams.MATCH_PARENT,
                         LayoutParams.MATCH_PARENT,
@@ -368,7 +368,7 @@ class MainActivity : Activity() {
             if (imageView.tag.toString() == "recording") {
                 recording?.visibility = LinearLayout.GONE
                 record?.visibility = LinearLayout.VISIBLE
-                stopRecording()
+                stopRecording(true)
             }
         }
 
@@ -402,7 +402,7 @@ class MainActivity : Activity() {
             isRecording = true
         }
 
-        private fun stopRecording() {
+        private fun stopRecording(launchBrowser: Boolean) {
             if (isRecording) {
                 virtualDisplay.release()
                 mediaProjection!!.unregisterCallback(mediaProjectionCallback)
@@ -410,7 +410,9 @@ class MainActivity : Activity() {
                 mediaRecorder.stop()
                 mediaRecorder.reset()
                 isRecording = false
-                launchBrowser()
+                if (launchBrowser) {
+                    launchBrowser()
+                }
             }
         }
 
@@ -422,7 +424,7 @@ class MainActivity : Activity() {
 
         private inner class MediaProjectionCallback : MediaProjection.Callback() {
             override fun onStop() {
-                stopRecording()
+                stopRecording(false)
             }
         }
 
@@ -433,7 +435,7 @@ class MainActivity : Activity() {
         }
 
         private fun cleanUp() {
-            stopRecording()
+            stopRecording(false)
 
             // Clean up the WindowManager
             if (overlay.parent == null) {
