@@ -25,6 +25,7 @@ import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.RecyclerView
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
 import com.example.screenrecorder.databinding.ActivityBrowserBinding
@@ -42,6 +43,7 @@ class MediaProjectionCompanion {
 class BrowserActivity: AppCompatActivity() {
 
     private lateinit var binding: ActivityBrowserBinding
+    private lateinit var videosAdapter: VideosAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +69,16 @@ class BrowserActivity: AppCompatActivity() {
                 startService(serviceIntent)
             }
         }
+
+        videosAdapter = VideosAdapter { video -> adapterOnClick(video) }
+        val recyclerView: RecyclerView = binding.recyclerView
+        recyclerView.adapter = videosAdapter
+        val videos = listOf<Video>(Video(), Video(), Video())
+        Log.v("TEST", "videos length=${videos.size}")
+        videosAdapter.submitList(videos)
+    }
+
+    private fun adapterOnClick(video: Video) {
     }
 }
 
