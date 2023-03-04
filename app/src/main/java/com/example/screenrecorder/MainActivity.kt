@@ -29,6 +29,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
 import com.example.screenrecorder.databinding.ActivityBrowserBinding
+import java.io.File
 
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
 const val OVERLAY_PERMISSION_CODE = 2
@@ -73,12 +74,18 @@ class BrowserActivity: AppCompatActivity() {
         videosAdapter = VideosAdapter { video -> adapterOnClick(video) }
         val recyclerView: RecyclerView = binding.recyclerView
         recyclerView.adapter = videosAdapter
-        val videos = listOf<Video>(Video(), Video(), Video())
-        Log.v("TEST", "videos length=${videos.size}")
+        val videos = mutableListOf<Video>()
+        File(this.filesDir.toString()).walk().forEach { file ->
+            if (file.extension == "mp4") {
+                val video = Video(file)
+                videos.add(video)
+            }
+        }
         videosAdapter.submitList(videos)
     }
 
     private fun adapterOnClick(video: Video) {
+        Log.v("TEST", "clicked for video=${video.label}")
     }
 }
 

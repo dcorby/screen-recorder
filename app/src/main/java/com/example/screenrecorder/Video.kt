@@ -1,6 +1,8 @@
 package com.example.screenrecorder
 
-class Video {
-    var filename = "filename.mp4"
-    var label = "Video Label"
+import java.io.File
+
+class Video(file: File) {
+    var filename = file.name
+    var label = file.name
 }

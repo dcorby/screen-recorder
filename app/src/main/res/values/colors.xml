@@ -15,4 +15,6 @@
     <color name="pastel_orange">#ffdfba</color>
 
     <color name="red">#9e1a1a</color>
+    <color name="gray">#cccccc</color>
+    <color name="blue">#7EC8E3</color>
 </resources>
