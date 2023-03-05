@@ -18,6 +18,7 @@ import android.net.Uri
 import android.os.*
 import android.provider.Settings
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.*
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
@@ -53,6 +54,7 @@ class BrowserActivity: AppCompatActivity() {
     private var mediaPlayer: MediaPlayer? = null
     private var retriever = MediaMetadataRetriever()
     private val handler = Handler(Looper.getMainLooper())
+    private var duration = -1
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +97,55 @@ class BrowserActivity: AppCompatActivity() {
         binding.play.setOnClickListener { play() }
         binding.pause.setOnClickListener { pause() }
         binding.stop.setOnClickListener { stop() }
+        binding.back1.setOnClickListener { seek(-1) }
+        binding.back10.setOnClickListener { seek(-10) }
+        binding.forward1.setOnClickListener { seek(1) }
+        binding.forward10.setOnClickListener { seek(10) }
+        binding.pinFrom.setOnClickListener {
+            if (duration == -1) {
+                return@setOnClickListener
+            }
+            if (binding.pinFrom.tag == "active") {
+                binding.pinFrom.tag = "inactive"
+                binding.pinFrom.setColorFilter(Color.parseColor("#ffffff"))
+                binding.timeFrom.setTextColor(Color.parseColor("#ffffff"))
+                binding.timeFrom.text = "00:00:00"
+            } else {
+                val time = getTime(mediaPlayer?.currentPosition ?: 0)
+                if (time >= binding.timeTo.text.toString()) {
+                    Toast.makeText(this, "Invalid", Toast.LENGTH_SHORT).show()
+                } else {
+                    binding.pinFrom.tag = "active"
+                    binding.pinFrom.setColorFilter(Color.parseColor("#9e1a1a"))
+                    binding.timeFrom.setTextColor(Color.parseColor("#9e1a1a"))
+                    binding.timeFrom.text = time
+                }
+            }
+        }
+        binding.pinTo.setOnClickListener {
+            if (duration == -1) {
+                return@setOnClickListener
+            }
+            if (binding.pinTo.tag == "active") {
+                binding.pinTo.tag = "inactive"
+                binding.pinTo.setColorFilter(Color.parseColor("#ffffff"))
+                binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
+                binding.timeTo.text = getTime(duration)
+            } else {
+                val time = getTime(mediaPlayer?.currentPosition ?: 0)
+                if (time <= binding.timeFrom.text.toString()) {
+                    Toast.makeText(this, "Invalid", Toast.LENGTH_SHORT).show()
+                } else {
+                    binding.pinTo.tag = "active"
+                    binding.pinTo.setColorFilter(Color.parseColor("#9e1a1a"))
+                    binding.timeTo.setTextColor(Color.parseColor("#9e1a1a"))
+                    binding.timeTo.text = time
+                }
+            }
+        }
+        binding.cut.setOnClickListener {
+            stop()
+        }
 
         // Display metrics are needed for framesHolder
         displayMetrics = DisplayMetrics()
@@ -125,6 +176,9 @@ class BrowserActivity: AppCompatActivity() {
                     binding.videoView.start()
                     binding.videoView.setMediaController(null)
                     startTimer()
+                    duration = mediaPlayer!!.duration
+                    binding.timeFrom.text = "00:00:00"
+                    binding.timeTo.text = getTime(mediaPlayer!!.duration)
                     mediaPlayer?.setOnCompletionListener { stop() }
                 }
             }
@@ -153,6 +207,25 @@ class BrowserActivity: AppCompatActivity() {
         //mediaPlayer?.release()
 
         mediaPlayer = null
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun seek(diff: Int) {
+        if (mediaPlayer != null) {
+            Log.v("TEST", "current=${mediaPlayer!!.currentPosition}")
+            var to = mediaPlayer!!.currentPosition + diff * 1000
+            Log.v("TEST", "to=${to}")
+            Log.v("TEST", "duration=${mediaPlayer!!.duration}")
+            if (to < 0) {
+                Log.v("TEST", "setting to zero")
+                to = 0
+            }
+            if (to > mediaPlayer!!.duration) {
+                Log.v("TEST", "setting to max")
+                to = mediaPlayer!!.duration
+            }
+            mediaPlayer!!.seekTo(to.toLong(), MediaPlayer.SEEK_CLOSEST)
+        }
     }
 
     // TODO: When a cut bound is set, start monitoring every 100ms to make sure we dim the frame precisely
