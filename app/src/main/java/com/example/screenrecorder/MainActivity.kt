@@ -212,19 +212,15 @@ class BrowserActivity: AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     private fun seek(diff: Int) {
         if (mediaPlayer != null) {
-            Log.v("TEST", "current=${mediaPlayer!!.currentPosition}")
             var to = mediaPlayer!!.currentPosition + diff * 1000
-            Log.v("TEST", "to=${to}")
-            Log.v("TEST", "duration=${mediaPlayer!!.duration}")
             if (to < 0) {
-                Log.v("TEST", "setting to zero")
                 to = 0
             }
             if (to > mediaPlayer!!.duration) {
-                Log.v("TEST", "setting to max")
                 to = mediaPlayer!!.duration
             }
             mediaPlayer!!.seekTo(to.toLong(), MediaPlayer.SEEK_CLOSEST)
+            binding.status.text = getTime(mediaPlayer!!.currentPosition)
         }
     }
 
