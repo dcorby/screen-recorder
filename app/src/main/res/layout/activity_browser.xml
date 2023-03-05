@@ -91,26 +91,48 @@
                 android:orientation="horizontal"
                 android:gravity="center_horizontal|center_vertical"
                 android:background="@color/black">
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginRight="15dp">
+                    <TextView
+                        android:id="@+id/status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="00:00:00"
+                        android:textColor="@color/white"
+                        android:layout_gravity="top">
+                    </TextView>
+                    <TextView
+                        android:id="@+id/duration"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="00:00:00"
+                        android:textColor="@color/white"
+                        android:layout_gravity="top">
+                    </TextView>
+                </androidx.appcompat.widget.LinearLayoutCompat>
                 <ImageView
                     android:id="@+id/back10"
                     android:src="@drawable/ic_baseline_replay_10_24"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="5dp">
+                    android:layout_marginRight="15dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/back1"
                     android:src="@drawable/ic_baseline_replay_1_24"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:layout_marginRight="15dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/play"
                     android:src="@drawable/ic_baseline_play_arrow_24"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:layout_marginRight="15dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/pause"
@@ -118,27 +140,27 @@
                     android:visibility="gone"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:layout_marginRight="15dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/stop"
                     android:src="@drawable/ic_baseline_stop_24"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:layout_marginRight="15dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/forward1"
                     android:src="@drawable/ic_baseline_forward_1_24"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content">
+                    android:layout_height="wrap_content"
+                    android:layout_marginRight="15dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/forward10"
                     android:src="@drawable/ic_baseline_forward_10_24"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="5dp">
+                    android:layout_height="wrap_content">
                 </ImageView>
             </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -150,18 +172,19 @@
                 android:gravity="center_horizontal|center_vertical"
                 android:background="@color/black">
                 <ImageView
-                    android:id="@+id/pin_left"
+                    android:id="@+id/pin_from"
                     android:src="@drawable/ic_baseline_push_pin_24"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:layout_marginRight="15dp">
                 </ImageView>
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_marginRight="10dp">
+                    android:layout_marginRight="15dp">
                     <TextView
+                        android:id="@+id/time_from"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="00:00:00"
@@ -169,6 +192,7 @@
                         android:layout_gravity="top">
                     </TextView>
                     <TextView
+                        android:id="@+id/time_to"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="00:00:00"
@@ -177,11 +201,11 @@
                     </TextView>
                 </androidx.appcompat.widget.LinearLayoutCompat>
                 <ImageView
-                    android:id="@+id/pin_right"
+                    android:id="@+id/pin_to"
                     android:src="@drawable/ic_baseline_push_pin_24"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:layout_marginRight="15dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/cut"

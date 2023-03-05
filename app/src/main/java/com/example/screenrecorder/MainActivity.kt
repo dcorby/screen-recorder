@@ -1,6 +1,5 @@
 package com.example.screenrecorder
 
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Service
@@ -8,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.drawable.BitmapDrawable
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.MediaMetadataRetriever
@@ -20,18 +18,13 @@ import android.net.Uri
 import android.os.*
 import android.provider.Settings
 import android.util.DisplayMetrics
-import android.util.Log
 import android.view.*
-import android.view.animation.Animation
-import android.view.animation.Transformation
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.core.os.postDelayed
-import androidx.core.view.marginLeft
 import androidx.recyclerview.widget.RecyclerView
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
@@ -57,8 +50,9 @@ class BrowserActivity: AppCompatActivity() {
     private lateinit var videosAdapter: VideosAdapter
     private var currentVideo: Video? = null
     private lateinit var displayMetrics: DisplayMetrics
-    private lateinit var mediaPlayer: MediaPlayer
+    private var mediaPlayer: MediaPlayer? = null
     private var retriever = MediaMetadataRetriever()
+    private val handler = Handler(Looper.getMainLooper())
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,6 +94,7 @@ class BrowserActivity: AppCompatActivity() {
 
         binding.play.setOnClickListener { play() }
         binding.pause.setOnClickListener { pause() }
+        binding.stop.setOnClickListener { stop() }
 
         // Display metrics are needed for framesHolder
         displayMetrics = DisplayMetrics()
@@ -116,28 +111,66 @@ class BrowserActivity: AppCompatActivity() {
         if (currentVideo == null) {
             Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
         } else {
-            binding.videoView.visibility = RelativeLayout.VISIBLE
-            binding.recyclerView.visibility = RelativeLayout.GONE
-            binding.videoView.setMediaController(MediaController(this))
-            binding.videoView.setVideoURI(currentVideo!!.file.toUri())
-            binding.videoView.requestFocus()
-            binding.videoView.setOnPreparedListener {
-                mediaPlayer = it
+            if (mediaPlayer != null) {
                 binding.videoView.start()
-
-                // TODO: Just show play/pause/stop/-1/+1
-                // TODO: Then to the right, a pin, then stacked textviews of times, then another pin, then scissors
-                // TODO: When a pin is down, make it red, and the scissors, and show the time
-                // TODO: Gray out the video when it's been selected for trim
-                // TODO: Use an ffmpeg library to cut: https://stackoverflow.com/questions/50501049/how-to-trim-the-video-with-start-end-time-in-android-programmatically
-
-
+                startTimer()
+            } else {
+                binding.videoView.visibility = RelativeLayout.VISIBLE
+                binding.recyclerView.visibility = RelativeLayout.GONE
+                binding.videoView.setMediaController(MediaController(this))
+                binding.videoView.setVideoURI(currentVideo!!.file.toUri())
+                binding.videoView.requestFocus()
+                binding.videoView.setOnPreparedListener {
+                    mediaPlayer = it
+                    binding.videoView.start()
+                    binding.videoView.setMediaController(null)
+                    startTimer()
+                    mediaPlayer?.setOnCompletionListener { stop() }
+                }
             }
+            binding.play.visibility = RelativeLayout.GONE
+            binding.pause.visibility = RelativeLayout.VISIBLE
         }
     }
 
     private fun pause() {
         binding.videoView.pause()
+        binding.pause.visibility = RelativeLayout.GONE
+        binding.play.visibility = RelativeLayout.VISIBLE
+        handler.removeCallbacksAndMessages(null)
+    }
+
+    private fun stop() {
+        binding.pause.visibility = RelativeLayout.GONE
+        binding.play.visibility = RelativeLayout.VISIBLE
+        handler.removeCallbacksAndMessages(null)
+        binding.status.text = "00:00:00"
+
+        // I believe these are redundant operations
+        binding.videoView.stopPlayback()
+        //mediaPlayer?.stop()
+        //mediaPlayer?.reset()
+        //mediaPlayer?.release()
+
+        mediaPlayer = null
+    }
+
+    private fun startTimer() {
+        binding.status.text = getTime(mediaPlayer!!.currentPosition)
+        handler.postDelayed(object : Runnable {
+            override fun run() {
+                binding.status.text = getTime(mediaPlayer!!.currentPosition)
+                handler.postDelayed(this, 1000)
+            }
+        }, 1000)
+        binding.duration.text = getTime(mediaPlayer!!.duration)
+    }
+
+    private fun getTime(ms: Int): String {
+        val h = ms / (1000 * 60 * 60) % 24
+        val m = ms / (1000 * 60) % 60
+        val s = (ms / 1000) % 60
+        return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
     }
 }
 
