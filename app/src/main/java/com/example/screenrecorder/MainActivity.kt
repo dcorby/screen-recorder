@@ -155,6 +155,7 @@ class BrowserActivity: AppCompatActivity() {
         mediaPlayer = null
     }
 
+    // TODO: When a cut bound is set, start monitoring every 100ms to make sure we dim the frame precisely
     private fun startTimer() {
         binding.status.text = getTime(mediaPlayer!!.currentPosition)
         handler.postDelayed(object : Runnable {
