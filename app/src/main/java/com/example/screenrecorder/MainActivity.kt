@@ -59,9 +59,6 @@ class BrowserActivity: AppCompatActivity() {
     private lateinit var displayMetrics: DisplayMetrics
     private lateinit var mediaPlayer: MediaPlayer
     private var retriever = MediaMetadataRetriever()
-    private var frames = hashMapOf<Int, View>()
-    private var offset = -1
-    private lateinit var framesHolderParams: FrameLayout.LayoutParams
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -107,8 +104,6 @@ class BrowserActivity: AppCompatActivity() {
         // Display metrics are needed for framesHolder
         displayMetrics = DisplayMetrics()
         windowManager.getDefaultDisplay().getMetrics(displayMetrics)
-
-        framesHolderParams = binding.framesHolder.layoutParams as FrameLayout.LayoutParams
     }
 
     private fun adapterOnClick(video: Video) {
@@ -128,7 +123,6 @@ class BrowserActivity: AppCompatActivity() {
             binding.videoView.requestFocus()
             binding.videoView.setOnPreparedListener {
                 mediaPlayer = it
-                updateFrames(true)
                 binding.videoView.start()
 
                 // TODO: Just show play/pause/stop/-1/+1
@@ -137,76 +131,9 @@ class BrowserActivity: AppCompatActivity() {
                 // TODO: Gray out the video when it's been selected for trim
                 // TODO: Use an ffmpeg library to cut: https://stackoverflow.com/questions/50501049/how-to-trim-the-video-with-start-end-time-in-android-programmatically
 
-                val handler = Handler(Looper.getMainLooper())
-                handler.postDelayed(object : Runnable {
-                    override fun run() {
-                        handler.postDelayed(this, 1000)
-                        updateFrames(false)
-                    }
-                }, 1000)
+
             }
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O_MR1)
-    private fun updateFrames(isInit: Boolean) {
-        Log.v("TEST", "updateFrames()")
-        val holderWidth = displayMetrics.widthPixels - (displayMetrics.density * 30 * 2)
-        val frameWidth = (holderWidth / MAX_FRAME_COUNT).toInt()
-        val frameHeight = (frameWidth / (displayMetrics.widthPixels / displayMetrics.heightPixels.toFloat())).toInt()
-
-        // Get the current second
-        val currentSecond = mediaPlayer.currentPosition / 1000
-
-        // Delete frames >5 seconds from current second
-        for ((second, imageView) in frames) {
-            if (second < currentSecond - 5) {
-                frames.remove(second)
-                offset += frameWidth
-                framesHolderParams.leftMargin = offset
-                binding.framesHolder.layoutParams = framesHolderParams
-            }
-        }
-
-        // Get frames <=5 seconds from current second
-        for (i in currentSecond .. currentSecond + 5) {
-            if (!frames.containsKey(i)) {
-                val bitmap = retriever.getScaledFrameAtTime((i * 1000000).toLong(),
-                    MediaMetadataRetriever.OPTION_PREVIOUS_SYNC or MediaMetadataRetriever.OPTION_CLOSEST,
-                    frameWidth, frameHeight)
-                if (bitmap == null) {
-                    RelativeLayout(this).let { relativeLayout ->
-                        relativeLayout.layoutParams = LinearLayout.LayoutParams(frameWidth, frameHeight)
-                        relativeLayout.setBackgroundColor(Color.parseColor("#000000"))
-                        frames[i] = relativeLayout
-                        binding.framesHolder.addView(relativeLayout)
-                    }
-                } else {
-                    ImageView(this).let { imageView ->
-                        imageView.layoutParams = LinearLayout.LayoutParams(frameWidth, frameHeight)
-                        imageView.setImageBitmap(bitmap)
-                        frames[i] = imageView
-                        binding.framesHolder.addView(imageView)
-                    }
-                }
-            }
-        }
-
-        // Pad the margin initially
-        if (isInit) {
-            val percentOffset = ((5000 - mediaPlayer.currentPosition) / 5000).toFloat() * 0.50
-            offset = (holderWidth * percentOffset).toInt()
-            framesHolderParams.leftMargin = offset
-        }
-
-        val animator = ValueAnimator.ofInt(offset, offset - frameWidth)
-        animator.addUpdateListener {
-            offset = it.animatedValue as Int
-            framesHolderParams.leftMargin = offset
-            binding.framesHolder.layoutParams = framesHolderParams
-        }
-        animator.duration = 1000
-        animator.start()
     }
 
     private fun pause() {
