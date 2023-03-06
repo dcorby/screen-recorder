@@ -82,16 +82,27 @@
             android:gravity="center_horizontal|center_vertical"
             android:padding="15dp">
 
-            <org.florescu.android.rangeseekbar.RangeSeekBar
-                android:id="@+id/range_seek_bar"
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:activeColor="@color/white"
-                app:valuesAboveThumbs="false"
-                app:alwaysActive="true"
-                app:barHeight="2dp"
-                app:showLabels="false"
-                app:textAboveThumbsColor="#000000" />
+                android:layout_height="wrap_content">
+                <org.florescu.android.rangeseekbar.RangeSeekBar
+                    android:id="@+id/range_seek_bar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    app:activeColor="@color/white"
+                    app:valuesAboveThumbs="false"
+                    app:alwaysActive="true"
+                    app:barHeight="2dp"
+                    app:showLabels="false"
+                    app:textAboveThumbsColor="#000000" />
+                <RelativeLayout
+                    android:layout_width="2dp"
+                    android:layout_height="match_parent"
+                    android:background="#33B5E5">
+                </RelativeLayout>
+            </FrameLayout>
+
+
 
             <!--
             <SeekBar
