@@ -30,6 +30,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.RecyclerView
+import com.arthenica.mobileffmpeg.Config.RETURN_CODE_CANCEL
+import com.arthenica.mobileffmpeg.Config.RETURN_CODE_SUCCESS
+import com.arthenica.mobileffmpeg.FFmpeg
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
 import com.example.screenrecorder.databinding.ActivityBrowserBinding
@@ -37,12 +40,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.florescu.android.rangeseekbar.RangeSeekBar
+import org.florescu.android.rangeseekbar.RangeSeekBar.OnRangeSeekBarChangeListener
 import java.io.File
-import com.arthenica.mobileffmpeg.Config
-import com.arthenica.mobileffmpeg.ExecuteCallback
-import com.arthenica.mobileffmpeg.FFmpeg
-import com.arthenica.mobileffmpeg.Config.RETURN_CODE_CANCEL
-import com.arthenica.mobileffmpeg.Config.RETURN_CODE_SUCCESS
+
 
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
 const val OVERLAY_PERMISSION_CODE = 2
@@ -70,6 +71,7 @@ class BrowserActivity: AppCompatActivity() {
     private var duration = -1
     private lateinit var viewModel: BrowserActivityViewModel
     private var baseDir = ""
+    private lateinit var rangeSeekBar: RangeSeekBar<*>
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -112,55 +114,55 @@ class BrowserActivity: AppCompatActivity() {
         }
         videosAdapter.submitList(videos)
 
+        rangeSeekBar = binding.rangeSeekBar
+
         binding.play.setOnClickListener { play() }
         binding.pause.setOnClickListener { pause() }
         binding.stop.setOnClickListener { stop() }
-        binding.back1.setOnClickListener { seek(-1) }
         binding.back10.setOnClickListener { seek(-10) }
-        binding.forward1.setOnClickListener { seek(1) }
         binding.forward10.setOnClickListener { seek(10) }
-        binding.pinFrom.setOnClickListener {
-            if (duration == -1) {
-                return@setOnClickListener
-            }
-            if (binding.pinFrom.tag == "active") {
-                binding.pinFrom.tag = "inactive"
-                binding.pinFrom.setColorFilter(Color.parseColor("#ffffff"))
-                binding.timeFrom.setTextColor(Color.parseColor("#ffffff"))
-                binding.timeFrom.text = "00:00:00"
-            } else {
-                val time = getTime(mediaPlayer?.currentPosition ?: 0)
-                if (time >= binding.timeTo.text.toString()) {
-                    Toast.makeText(this, "Invalid", Toast.LENGTH_SHORT).show()
-                } else {
-                    binding.pinFrom.tag = "active"
-                    binding.pinFrom.setColorFilter(Color.parseColor("#9e1a1a"))
-                    binding.timeFrom.setTextColor(Color.parseColor("#9e1a1a"))
-                    binding.timeFrom.text = time
-                }
-            }
-        }
-        binding.pinTo.setOnClickListener {
-            if (duration == -1) {
-                return@setOnClickListener
-            }
-            if (binding.pinTo.tag == "active") {
-                binding.pinTo.tag = "inactive"
-                binding.pinTo.setColorFilter(Color.parseColor("#ffffff"))
-                binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
-                binding.timeTo.text = getTime(duration)
-            } else {
-                val time = getTime(mediaPlayer?.currentPosition ?: 0)
-                if (time <= binding.timeFrom.text.toString()) {
-                    Toast.makeText(this, "Invalid", Toast.LENGTH_SHORT).show()
-                } else {
-                    binding.pinTo.tag = "active"
-                    binding.pinTo.setColorFilter(Color.parseColor("#9e1a1a"))
-                    binding.timeTo.setTextColor(Color.parseColor("#9e1a1a"))
-                    binding.timeTo.text = time
-                }
-            }
-        }
+//        binding.pinFrom.setOnClickListener {
+//            if (duration == -1) {
+//                return@setOnClickListener
+//            }
+//            if (binding.pinFrom.tag == "active") {
+//                binding.pinFrom.tag = "inactive"
+//                binding.pinFrom.setColorFilter(Color.parseColor("#ffffff"))
+//                binding.timeFrom.setTextColor(Color.parseColor("#ffffff"))
+//                binding.timeFrom.text = "00:00:00"
+//            } else {
+//                val time = getTime(mediaPlayer?.currentPosition ?: 0)
+//                if (time >= binding.timeTo.text.toString()) {
+//                    Toast.makeText(this, "Invalid", Toast.LENGTH_SHORT).show()
+//                } else {
+//                    binding.pinFrom.tag = "active"
+//                    binding.pinFrom.setColorFilter(Color.parseColor("#9e1a1a"))
+//                    binding.timeFrom.setTextColor(Color.parseColor("#9e1a1a"))
+//                    binding.timeFrom.text = time
+//                }
+//            }
+//        }
+//        binding.pinTo.setOnClickListener {
+//            if (duration == -1) {
+//                return@setOnClickListener
+//            }
+//            if (binding.pinTo.tag == "active") {
+//                binding.pinTo.tag = "inactive"
+//                binding.pinTo.setColorFilter(Color.parseColor("#ffffff"))
+//                binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
+//                binding.timeTo.text = getTime(duration)
+//            } else {
+//                val time = getTime(mediaPlayer?.currentPosition ?: 0)
+//                if (time <= binding.timeFrom.text.toString()) {
+//                    Toast.makeText(this, "Invalid", Toast.LENGTH_SHORT).show()
+//                } else {
+//                    binding.pinTo.tag = "active"
+//                    binding.pinTo.setColorFilter(Color.parseColor("#9e1a1a"))
+//                    binding.timeTo.setTextColor(Color.parseColor("#9e1a1a"))
+//                    binding.timeTo.text = time
+//                }
+//            }
+//        }
         binding.cut.setOnClickListener {
             stop()
             cut()
@@ -196,14 +198,28 @@ class BrowserActivity: AppCompatActivity() {
                     binding.videoView.setMediaController(null)
                     startTimer()
                     duration = mediaPlayer!!.duration
+
+                    rangeSeekBar.setRangeValues(0 as Nothing?, duration as Nothing?)  // Hmm??
+                    rangeSeekBar.selectedMinValue = 0
+                    rangeSeekBar.selectedMaxValue = duration
+                    rangeSeekBar.isEnabled = true
+
+                    rangeSeekBar.setOnRangeSeekBarChangeListener{ bar, minValue, maxValue ->
+                        onSeekChange(bar, minValue, maxValue)
+                    }
+
                     binding.timeFrom.text = "00:00:00"
                     binding.timeTo.text = getTime(mediaPlayer!!.duration)
-                    mediaPlayer?.setOnCompletionListener { stop() }
+                    mediaPlayer?.setOnCompletionListener { pause() }
                 }
             }
             binding.play.visibility = RelativeLayout.GONE
             binding.pause.visibility = RelativeLayout.VISIBLE
         }
+    }
+
+    private fun onSeekChange(bar: RangeSeekBar<*>, minValue: Number, maxValue: Number) {
+
     }
 
     private fun pause() {

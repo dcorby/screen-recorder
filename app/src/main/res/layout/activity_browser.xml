@@ -70,6 +70,44 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
+            android:background="@color/black">
+        </View>
+
+        <!-- seek -->
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/seek_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal|center_vertical"
+            android:padding="15dp">
+
+            <org.florescu.android.rangeseekbar.RangeSeekBar
+                android:id="@+id/range_seek_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:activeColor="@color/white"
+                app:valuesAboveThumbs="false"
+                app:alwaysActive="true"
+                app:barHeight="2dp"
+                app:showLabels="false"
+                app:textAboveThumbsColor="#000000" />
+
+            <!--
+            <SeekBar
+                android:id="@+id/seekbar"
+                android:layerType="software"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+            </SeekBar>
+            -->
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <!-- border -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
             android:background="@color/gray1">
         </View>
 
@@ -84,6 +122,17 @@
             android:alpha="0.50"
             android:padding="15dp">
 
+            <!-- 1/3 -->
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="center_horizontal|center_vertical"
+                android:background="@color/black">
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+            <!-- 2/3 -->
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -95,7 +144,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_marginRight="10dp">
+                    android:layout_marginRight="5dp">
                     <TextView
                         android:id="@+id/status"
                         android:layout_width="wrap_content"
@@ -113,57 +162,47 @@
                         android:layout_gravity="top">
                     </TextView>
                 </androidx.appcompat.widget.LinearLayoutCompat>
+
                 <ImageView
                     android:id="@+id/back10"
-                    android:src="@drawable/ic_baseline_replay_10_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:src="@drawable/ic_baseline_replay_10_50"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginRight="5dp">
                 </ImageView>
-                <ImageView
-                    android:id="@+id/back1"
-                    android:src="@drawable/ic_baseline_replay_1_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
-                </ImageView>
+
                 <ImageView
                     android:id="@+id/play"
-                    android:src="@drawable/ic_baseline_play_arrow_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:src="@drawable/ic_baseline_play_arrow_50"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginRight="5dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/pause"
-                    android:src="@drawable/ic_baseline_pause_32"
+                    android:src="@drawable/ic_baseline_pause_50"
                     android:visibility="gone"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginRight="5dp">
                 </ImageView>
                 <ImageView
                     android:id="@+id/stop"
-                    android:src="@drawable/ic_baseline_stop_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
+                    android:src="@drawable/ic_baseline_stop_50"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginRight="5dp">
                 </ImageView>
-                <ImageView
-                    android:id="@+id/forward1"
-                    android:src="@drawable/ic_baseline_forward_1_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
-                </ImageView>
+
                 <ImageView
                     android:id="@+id/forward10"
-                    android:src="@drawable/ic_baseline_forward_10_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content">
+                    android:src="@drawable/ic_baseline_forward_10_50"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp">
                 </ImageView>
             </androidx.appcompat.widget.LinearLayoutCompat>
 
+            <!-- 3/3 -->
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -171,13 +210,7 @@
                 android:orientation="horizontal"
                 android:gravity="center_horizontal|center_vertical"
                 android:background="@color/black">
-                <ImageView
-                    android:id="@+id/pin_from"
-                    android:src="@drawable/ic_baseline_push_pin_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
-                </ImageView>
+
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -200,18 +233,12 @@
                         android:layout_gravity="top">
                     </TextView>
                 </androidx.appcompat.widget.LinearLayoutCompat>
-                <ImageView
-                    android:id="@+id/pin_to"
-                    android:src="@drawable/ic_baseline_push_pin_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginRight="10dp">
-                </ImageView>
+
                 <ImageView
                     android:id="@+id/cut"
-                    android:src="@drawable/ic_baseline_content_cut_32"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content">
+                    android:src="@drawable/ic_baseline_content_cut_50"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp">
                 </ImageView>
             </androidx.appcompat.widget.LinearLayoutCompat>
 
