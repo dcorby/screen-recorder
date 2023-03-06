@@ -17,8 +17,10 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
+import android.util.AttributeSet
 import android.util.DisplayMetrics
 import android.util.Log
+import android.util.TypedValue
 import android.view.*
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
@@ -26,6 +28,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.core.view.marginLeft
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -41,7 +44,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.florescu.android.rangeseekbar.RangeSeekBar
-import org.florescu.android.rangeseekbar.RangeSeekBar.OnRangeSeekBarChangeListener
 import java.io.File
 
 
@@ -72,6 +74,7 @@ class BrowserActivity: AppCompatActivity() {
     private lateinit var viewModel: BrowserActivityViewModel
     private var baseDir = ""
     private lateinit var rangeSeekBar: RangeSeekBar<*>
+    private var rangeSeekBarMap = hashMapOf("offset" to -1, "width" to -1)
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,6 +118,17 @@ class BrowserActivity: AppCompatActivity() {
         videosAdapter.submitList(videos)
 
         rangeSeekBar = binding.rangeSeekBar
+        rangeSeekBar.post {
+
+            // set rangeSeekBar offset
+            rangeSeekBarMap["offset"] = dpToPx(46f)    // 16 * 3 - 2, I think??
+            val params = binding.current.layoutParams as FrameLayout.LayoutParams
+            params.leftMargin = rangeSeekBarMap["offset"]!!
+            binding.current.layoutParams = params
+
+            // Set rangeSeekBar width
+            rangeSeekBarMap["width"] = rangeSeekBar.width - rangeSeekBarMap["offset"]!! * 2 + dpToPx(2f)
+        }
 
         binding.play.setOnClickListener { play() }
         binding.pause.setOnClickListener { pause() }
@@ -199,12 +213,12 @@ class BrowserActivity: AppCompatActivity() {
                     startTimer()
                     duration = mediaPlayer!!.duration
 
-                    rangeSeekBar.setRangeValues(0 as Nothing?, duration as Nothing?)  // Hmm??
+                    //rangeSeekBar.setRangeValues(0, duration)  // Hmm??
                     rangeSeekBar.selectedMinValue = 0
                     rangeSeekBar.selectedMaxValue = duration
                     rangeSeekBar.isEnabled = true
 
-                    rangeSeekBar.setOnRangeSeekBarChangeListener{ bar, minValue, maxValue ->
+                    rangeSeekBar.setOnRangeSeekBarChangeListener { bar, minValue, maxValue ->
                         onSeekChange(bar, minValue, maxValue)
                     }
 
@@ -309,10 +323,27 @@ class BrowserActivity: AppCompatActivity() {
         handler.postDelayed(object : Runnable {
             override fun run() {
                 binding.status.text = getTime(mediaPlayer!!.currentPosition)
+                val params = binding.current.layoutParams as FrameLayout.LayoutParams
+                params.leftMargin = getCurrentOffset()
+                    binding.current.layoutParams = params
                 handler.postDelayed(this, 100)
             }
         }, 100)
         binding.duration.text = getTime(mediaPlayer!!.duration)
+    }
+
+    private fun getCurrentOffset(): Int {
+        val pct = mediaPlayer!!.currentPosition / mediaPlayer!!.duration.toFloat()
+        val offset = rangeSeekBarMap["width"]!! * pct + rangeSeekBarMap["offset"]!!
+        return offset.toInt()
+    }
+
+    private fun dpToPx(dp: Float): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp,
+            resources.displayMetrics
+        ).toInt()
     }
 
     private fun getTime(ms: Int): String {

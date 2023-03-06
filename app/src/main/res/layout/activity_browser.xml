@@ -96,13 +96,12 @@
                     app:showLabels="false"
                     app:textAboveThumbsColor="#000000" />
                 <RelativeLayout
+                    android:id="@+id/current"
                     android:layout_width="2dp"
                     android:layout_height="match_parent"
                     android:background="#33B5E5">
                 </RelativeLayout>
             </FrameLayout>
-
-
 
             <!--
             <SeekBar
