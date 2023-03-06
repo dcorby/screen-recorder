@@ -26,12 +26,23 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.RecyclerView
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjection
 import com.example.screenrecorder.MediaProjectionCompanion.Companion.mediaProjectionManager
 import com.example.screenrecorder.databinding.ActivityBrowserBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
-
+import com.arthenica.mobileffmpeg.Config
+import com.arthenica.mobileffmpeg.ExecuteCallback
+import com.arthenica.mobileffmpeg.FFmpeg
+import com.arthenica.mobileffmpeg.Config.RETURN_CODE_CANCEL
+import com.arthenica.mobileffmpeg.Config.RETURN_CODE_SUCCESS
 
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
 const val OVERLAY_PERMISSION_CODE = 2
@@ -43,8 +54,10 @@ class MediaProjectionCompanion {
     }
 }
 
-const val MAX_FRAME_COUNT = 10
-
+class BrowserActivityViewModel : ViewModel() {
+    var job: Job = Job()
+    lateinit var activity: BrowserActivity
+}
 class BrowserActivity: AppCompatActivity() {
 
     private lateinit var binding: ActivityBrowserBinding
@@ -55,6 +68,8 @@ class BrowserActivity: AppCompatActivity() {
     private var retriever = MediaMetadataRetriever()
     private val handler = Handler(Looper.getMainLooper())
     private var duration = -1
+    private lateinit var viewModel: BrowserActivityViewModel
+    private var baseDir = ""
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,6 +96,9 @@ class BrowserActivity: AppCompatActivity() {
                 startService(serviceIntent)
             }
         }
+
+        baseDir = this.filesDir.toString()
+        viewModel = ViewModelProvider(this).get(BrowserActivityViewModel::class.java)
 
         videosAdapter = VideosAdapter { video -> adapterOnClick(video) }
         val recyclerView: RecyclerView = binding.recyclerView
@@ -145,6 +163,7 @@ class BrowserActivity: AppCompatActivity() {
         }
         binding.cut.setOnClickListener {
             stop()
+            cut()
         }
 
         // Display metrics are needed for framesHolder
@@ -224,15 +243,59 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    // TODO: When a cut bound is set, start monitoring every 100ms to make sure we dim the frame precisely
+    private fun cut() {
+        viewModel.activity = this
+        viewModel.job = viewModel.viewModelScope.launch(Dispatchers.IO) {
+
+            // https://github.com/arthenica/ffmpeg-kit
+            // https://ffmpeg.org/ffmpeg.html
+            // https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax
+            val cmd = arrayOf(
+                "-ss", "00:00:05",  // position (time duration specification)
+                "-y",   // overwrite output files without asking
+                "-to", "00:00:13",   // mutually exclusive with -t
+                "-i", baseDir + "/video.mp4",
+                //"-t", "00:00:07",  // duration, mutually exclusive with -to
+                "-s", "${displayMetrics.widthPixels}x${displayMetrics.heightPixels}",
+                "-r", "15",
+                "-vcodec", "mpeg4",
+                "-b:v", "2097152",
+                "-b:a", "48000",
+                "-ac", "2",
+                "-ar", "22050",
+                baseDir + "/video-trim.mp4"
+            )
+
+            val result = FFmpeg.execute(cmd)
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    RETURN_CODE_SUCCESS -> {
+                        Log.v("TEST", "Command completed successfully")
+                        Toast.makeText(viewModel.activity,
+                            "Video created (video-trim.mp4)",
+                            Toast.LENGTH_SHORT).show()
+                    }
+                    RETURN_CODE_CANCEL -> {
+                        Log.v("TEST", "Command cancelled by user")
+                    }
+                    else -> {
+                        Log.v("TEST",
+                            String.format("Command execution failed with result=%d and the output below.",
+                                result))
+                    }
+                }
+            }
+        }
+    }
+
     private fun startTimer() {
         binding.status.text = getTime(mediaPlayer!!.currentPosition)
         handler.postDelayed(object : Runnable {
             override fun run() {
                 binding.status.text = getTime(mediaPlayer!!.currentPosition)
-                handler.postDelayed(this, 1000)
+                handler.postDelayed(this, 100)
             }
-        }, 1000)
+        }, 100)
         binding.duration.text = getTime(mediaPlayer!!.duration)
     }
 
