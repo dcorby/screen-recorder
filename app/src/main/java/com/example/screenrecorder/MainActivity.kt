@@ -5,8 +5,8 @@ import android.app.Activity
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.PixelFormat
+import android.graphics.*
+import android.graphics.drawable.BitmapDrawable
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.MediaMetadataRetriever
@@ -17,7 +17,6 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
-import android.util.AttributeSet
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
@@ -28,7 +27,6 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.core.view.marginLeft
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -43,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.florescu.android.rangeseekbar.RangeSeekBar
 import java.io.File
 
 
@@ -73,8 +70,6 @@ class BrowserActivity: AppCompatActivity() {
     private var duration = -1
     private lateinit var viewModel: BrowserActivityViewModel
     private var baseDir = ""
-    private lateinit var rangeSeekBar: RangeSeekBar<*>
-    private var rangeSeekBarMap = hashMapOf("offset" to -1, "width" to -1)
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,24 +112,21 @@ class BrowserActivity: AppCompatActivity() {
         }
         videosAdapter.submitList(videos)
 
-        rangeSeekBar = binding.rangeSeekBar
-        rangeSeekBar.post {
-
-            // set rangeSeekBar offset
-            rangeSeekBarMap["offset"] = dpToPx(46f)    // 16 * 3 - 2, I think??
-            val params = binding.current.layoutParams as FrameLayout.LayoutParams
-            params.leftMargin = rangeSeekBarMap["offset"]!!
-            binding.current.layoutParams = params
-
-            // Set rangeSeekBar width
-            rangeSeekBarMap["width"] = rangeSeekBar.width - rangeSeekBarMap["offset"]!! * 2 + dpToPx(2f)
-        }
-
         binding.play.setOnClickListener { play() }
         binding.pause.setOnClickListener { pause() }
         binding.stop.setOnClickListener { stop() }
         binding.back10.setOnClickListener { seek(-10) }
         binding.forward10.setOnClickListener { seek(10) }
+
+        //binding.root.viewTreeObserver.addOnGlobalLayoutListener {
+        binding.bar.post {
+            val width = binding.bar.width
+            val params = binding.limitRight.layoutParams as FrameLayout.LayoutParams
+            params.leftMargin = width
+            binding.limitRight.layoutParams = params
+        }
+
+
 //        binding.pinFrom.setOnClickListener {
 //            if (duration == -1) {
 //                return@setOnClickListener
@@ -212,28 +204,16 @@ class BrowserActivity: AppCompatActivity() {
                     binding.videoView.setMediaController(null)
                     startTimer()
                     duration = mediaPlayer!!.duration
-
-                    //rangeSeekBar.setRangeValues(0, duration)  // Hmm??
-                    rangeSeekBar.selectedMinValue = 0
-                    rangeSeekBar.selectedMaxValue = duration
-                    rangeSeekBar.isEnabled = true
-
-                    rangeSeekBar.setOnRangeSeekBarChangeListener { bar, minValue, maxValue ->
-                        onSeekChange(bar, minValue, maxValue)
-                    }
-
                     binding.timeFrom.text = "00:00:00"
                     binding.timeTo.text = getTime(mediaPlayer!!.duration)
                     mediaPlayer?.setOnCompletionListener { pause() }
+                    binding.limitLeft.setOnTouchListener(onTouchListener)
+                    binding.limitRight.setOnTouchListener(onTouchListener)
                 }
             }
             binding.play.visibility = RelativeLayout.GONE
             binding.pause.visibility = RelativeLayout.VISIBLE
         }
-    }
-
-    private fun onSeekChange(bar: RangeSeekBar<*>, minValue: Number, maxValue: Number) {
-
     }
 
     private fun pause() {
@@ -323,27 +303,10 @@ class BrowserActivity: AppCompatActivity() {
         handler.postDelayed(object : Runnable {
             override fun run() {
                 binding.status.text = getTime(mediaPlayer!!.currentPosition)
-                val params = binding.current.layoutParams as FrameLayout.LayoutParams
-                params.leftMargin = getCurrentOffset()
-                    binding.current.layoutParams = params
                 handler.postDelayed(this, 100)
             }
         }, 100)
         binding.duration.text = getTime(mediaPlayer!!.duration)
-    }
-
-    private fun getCurrentOffset(): Int {
-        val pct = mediaPlayer!!.currentPosition / mediaPlayer!!.duration.toFloat()
-        val offset = rangeSeekBarMap["width"]!! * pct + rangeSeekBarMap["offset"]!!
-        return offset.toInt()
-    }
-
-    private fun dpToPx(dp: Float): Int {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            dp,
-            resources.displayMetrics
-        ).toInt()
     }
 
     private fun getTime(ms: Int): String {
@@ -351,6 +314,56 @@ class BrowserActivity: AppCompatActivity() {
         val m = ms / (1000 * 60) % 60
         val s = (ms / 1000) % 60
         return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
+    }
+
+    private val onTouchListener = object : View.OnTouchListener {
+        var prevX = 0
+        var tag = ""
+        var params: FrameLayout.LayoutParams? = null
+        var other: ImageView? = null
+        var otherParams: FrameLayout.LayoutParams? = null
+        override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+            if (v == null || event == null) {
+                return false
+            }
+            when (event.action) {
+                MotionEvent.ACTION_MOVE -> {
+                    val diffX = event.rawX.toInt() - prevX
+                    if (params != null && otherParams != null) {
+                        val leftMargin = params!!.leftMargin + diffX
+                        if (tag == "left" && leftMargin < otherParams!!.leftMargin) {
+                            params!!.leftMargin = leftMargin
+                            v.layoutParams = params
+                            prevX = event.rawX.toInt()
+                        }
+                        if (tag == "right" && leftMargin > otherParams!!.leftMargin) {
+                            params!!.leftMargin = leftMargin
+                            v.layoutParams = params
+                            prevX = event.rawX.toInt()
+                        }
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    prevX = 0
+                    tag = ""
+                    params = null
+                    other = null
+                    otherParams = null
+                }
+                MotionEvent.ACTION_DOWN -> {
+                    prevX = event.rawX.toInt()
+                    params = v.layoutParams as FrameLayout.LayoutParams
+                    tag = v.tag.toString()
+                    other = if (tag == "left") {
+                        binding.limitRight
+                    } else {
+                        binding.limitLeft
+                    }
+                    otherParams = other!!.layoutParams as FrameLayout.LayoutParams
+                }
+            }
+            return true
+        }
     }
 }
 
