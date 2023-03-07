@@ -54,7 +54,6 @@ class MediaProjectionCompanion {
 
 class BrowserActivityViewModel : ViewModel() {
     var job: Job = Job()
-    lateinit var activity: BrowserActivity
 }
 class BrowserActivity: AppCompatActivity() {
 
@@ -112,7 +111,7 @@ class BrowserActivity: AppCompatActivity() {
 
         binding.play.setOnClickListener { play() }
         binding.pause.setOnClickListener { pause() }
-        binding.stop.setOnClickListener { stop() }
+        binding.stop.setOnClickListener { stop(true) }
         binding.back10.setOnClickListener { seekDiff(-10) }
         binding.forward10.setOnClickListener { seekDiff(10) }
 
@@ -125,8 +124,22 @@ class BrowserActivity: AppCompatActivity() {
         }
 
         binding.cut.setOnClickListener {
-            stop()
-            cut()
+            val cutFrom = binding.timeFrom.currentTextColor == ContextCompat.getColor(this, R.color.red)
+            val cutTo = binding.timeTo.currentTextColor == ContextCompat.getColor(this, R.color.red)
+            if (cutFrom || cutTo) {
+                stop(false)
+                binding.nameLayout.visibility = RelativeLayout.VISIBLE
+                binding.nameButton.setOnClickListener {
+                    val name = binding.name.text.toString()
+                    cut(name.replace(".mp4", ""))
+                    binding.videoView.visibility = RelativeLayout.GONE
+                    binding.recyclerView.visibility = RelativeLayout.VISIBLE
+                    binding.nameLayout.visibility = RelativeLayout.GONE
+                    binding.nameButton.setOnClickListener(null)
+                }
+            } else {
+                Toast.makeText(this, "Select bounds", Toast.LENGTH_SHORT).show()
+            }
         }
 
         // Display metrics are needed for framesHolder
@@ -161,7 +174,13 @@ class BrowserActivity: AppCompatActivity() {
                     duration = mediaPlayer!!.duration
                     binding.timeFrom.text = "00:00:00"
                     binding.timeTo.text = getTime(mediaPlayer!!.duration)
-                    mediaPlayer?.setOnCompletionListener { pause() }
+                    mediaPlayer?.setOnCompletionListener {
+                        stop(false)
+                        /* stop() is pretty blunt here, but encountering a strange issue
+                           where some tracks replay mid-track, even after seeking to zero
+                           in this callback
+                         */
+                    }
                     binding.boundLeft.setOnTouchListener(onTouchListener)
                     binding.boundRight.setOnTouchListener(onTouchListener)
                 }
@@ -178,7 +197,7 @@ class BrowserActivity: AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
     }
 
-    private fun stop() {
+    private fun stop(toggleScreen: Boolean) {
         binding.pause.visibility = RelativeLayout.GONE
         binding.play.visibility = RelativeLayout.VISIBLE
         handler.removeCallbacksAndMessages(null)
@@ -193,13 +212,30 @@ class BrowserActivity: AppCompatActivity() {
 
         mediaPlayer = null
 
-        (binding.boundLeft.layoutParams as FrameLayout.LayoutParams).leftMargin = 0
-        (binding.boundRight.layoutParams as FrameLayout.LayoutParams).leftMargin = binding.bar.width
-        (binding.current.layoutParams as FrameLayout.LayoutParams).leftMargin = dpToPx(15f).toInt()
+        val boundLeftParams = binding.boundLeft.layoutParams as FrameLayout.LayoutParams
+        boundLeftParams.leftMargin = 0
+        binding.boundLeft.layoutParams = boundLeftParams
+
+        val boundRightParams = binding.boundRight.layoutParams as FrameLayout.LayoutParams
+        boundRightParams.leftMargin = binding.bar.width
+        binding.boundRight.layoutParams = boundRightParams
+
+        val currentParams = binding.current.layoutParams as FrameLayout.LayoutParams
+        currentParams.leftMargin = dpToPx(15f).toInt()
+        binding.current.layoutParams = currentParams
+
         binding.timeFrom.text = "00:00:00"
         binding.timeFrom.setTextColor(Color.parseColor("#ffffff"))
         binding.timeTo.text = "00:00:00"
         binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
+
+        binding.boundLeft.setOnTouchListener(null)
+        binding.boundRight.setOnTouchListener(null)
+
+        if (toggleScreen) {
+            binding.videoView.visibility = RelativeLayout.GONE
+            binding.recyclerView.visibility = RelativeLayout.VISIBLE
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -219,31 +255,27 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    private fun cut() {
+    private fun cut(name: String) {
         fun showToast(msg: String) {
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         }
 
-        viewModel.activity = this
         viewModel.job = viewModel.viewModelScope.launch(Dispatchers.IO) {
 
             // https://github.com/arthenica/ffmpeg-kit
             // https://ffmpeg.org/ffmpeg.html
             // https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax
+            // This command produced the best quality video. libx264 required a special lib version (see gradle)
             val cmd = arrayOf(
                 "-ss", "00:00:05",  // position (time duration specification)
                 "-y",   // overwrite output files without asking
-                "-to", "00:00:13",   // mutually exclusive with -t
                 "-i", baseDir + "/video.mp4",
-                //"-t", "00:00:07",  // duration, mutually exclusive with -to
+                "-codec:v", "libx264",
+                "-t", "00:00:08",  // duration, mutually exclusive with -to
+                "-map", "0",
                 "-s", "${displayMetrics.widthPixels}x${displayMetrics.heightPixels}",
-                "-r", "15",
-                "-vcodec", "mpeg4",
-                "-b:v", "2097152",
-                "-b:a", "48000",
-                "-ac", "2",
-                "-ar", "22050",
-                baseDir + "/video-trim.mp4"
+                "-r", "23",
+                baseDir + "/${name}.mp4"
             )
 
             val result = FFmpeg.execute(cmd)
@@ -251,7 +283,7 @@ class BrowserActivity: AppCompatActivity() {
                 when (result) {
                     RETURN_CODE_SUCCESS -> {
                         Log.v("TEST", "Command completed successfully")
-                        showToast("Video created (video-trim.mp4)")
+                        showToast("Video created (${name}.mp4)")
                     }
                     RETURN_CODE_CANCEL -> {
                         Log.v("TEST", "Command cancelled")
@@ -320,6 +352,7 @@ class BrowserActivity: AppCompatActivity() {
     private fun checkBounds() {
         val leftPosition = getBoundPosition(binding.boundLeft)
         if (mediaPlayer!!.currentPosition < leftPosition) {
+            Log.v("TEST", "seekTo=${leftPosition.toLong()}")
             mediaPlayer!!.seekTo(leftPosition.toLong(), MediaPlayer.SEEK_CLOSEST)
 
         }
@@ -351,6 +384,7 @@ class BrowserActivity: AppCompatActivity() {
         val params = binding.current.layoutParams as FrameLayout.LayoutParams
         val pct = (params.leftMargin - dpToPx(15f)) / binding.bar.width.toFloat()
         val ms = pct * mediaPlayer!!.duration
+        Log.v("TEST", "seekTo=${ms.toLong()}")
         mediaPlayer!!.seekTo(ms.toLong(), MediaPlayer.SEEK_CLOSEST)
         updateCurrent()
     }

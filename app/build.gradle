@@ -47,7 +47,9 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 
-    implementation 'com.arthenica:mobile-ffmpeg-full:4.4'
+    // implementation 'com.arthenica:mobile-ffmpeg-full:4.4'
+    // https://github.com/tanersener/mobile-ffmpeg/issues/127
+    implementation 'com.arthenica:mobile-ffmpeg-min-gpl:4.4'
+
     implementation 'org.florescu.android.rangeseekbar:rangeseekbar-library:0.3.0'
-    // Requires android.enableJetifier=true in gradle.properties
 }
