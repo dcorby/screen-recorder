@@ -6,7 +6,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.*
-import android.graphics.drawable.BitmapDrawable
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.MediaMetadataRetriever
@@ -115,8 +114,8 @@ class BrowserActivity: AppCompatActivity() {
         binding.play.setOnClickListener { play() }
         binding.pause.setOnClickListener { pause() }
         binding.stop.setOnClickListener { stop() }
-        binding.back10.setOnClickListener { seek(-10) }
-        binding.forward10.setOnClickListener { seek(10) }
+        binding.back10.setOnClickListener { seekDiff(-10) }
+        binding.forward10.setOnClickListener { seekDiff(10) }
 
         //binding.root.viewTreeObserver.addOnGlobalLayoutListener {
         binding.bar.post {
@@ -126,49 +125,6 @@ class BrowserActivity: AppCompatActivity() {
             binding.limitRight.layoutParams = params
         }
 
-
-//        binding.pinFrom.setOnClickListener {
-//            if (duration == -1) {
-//                return@setOnClickListener
-//            }
-//            if (binding.pinFrom.tag == "active") {
-//                binding.pinFrom.tag = "inactive"
-//                binding.pinFrom.setColorFilter(Color.parseColor("#ffffff"))
-//                binding.timeFrom.setTextColor(Color.parseColor("#ffffff"))
-//                binding.timeFrom.text = "00:00:00"
-//            } else {
-//                val time = getTime(mediaPlayer?.currentPosition ?: 0)
-//                if (time >= binding.timeTo.text.toString()) {
-//                    Toast.makeText(this, "Invalid", Toast.LENGTH_SHORT).show()
-//                } else {
-//                    binding.pinFrom.tag = "active"
-//                    binding.pinFrom.setColorFilter(Color.parseColor("#9e1a1a"))
-//                    binding.timeFrom.setTextColor(Color.parseColor("#9e1a1a"))
-//                    binding.timeFrom.text = time
-//                }
-//            }
-//        }
-//        binding.pinTo.setOnClickListener {
-//            if (duration == -1) {
-//                return@setOnClickListener
-//            }
-//            if (binding.pinTo.tag == "active") {
-//                binding.pinTo.tag = "inactive"
-//                binding.pinTo.setColorFilter(Color.parseColor("#ffffff"))
-//                binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
-//                binding.timeTo.text = getTime(duration)
-//            } else {
-//                val time = getTime(mediaPlayer?.currentPosition ?: 0)
-//                if (time <= binding.timeFrom.text.toString()) {
-//                    Toast.makeText(this, "Invalid", Toast.LENGTH_SHORT).show()
-//                } else {
-//                    binding.pinTo.tag = "active"
-//                    binding.pinTo.setColorFilter(Color.parseColor("#9e1a1a"))
-//                    binding.timeTo.setTextColor(Color.parseColor("#9e1a1a"))
-//                    binding.timeTo.text = time
-//                }
-//            }
-//        }
         binding.cut.setOnClickListener {
             stop()
             cut()
@@ -239,7 +195,7 @@ class BrowserActivity: AppCompatActivity() {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun seek(diff: Int) {
+    private fun seekDiff(diff: Int) {
         if (mediaPlayer != null) {
             var to = mediaPlayer!!.currentPosition + diff * 1000
             if (to < 0) {
@@ -251,6 +207,10 @@ class BrowserActivity: AppCompatActivity() {
             mediaPlayer!!.seekTo(to.toLong(), MediaPlayer.SEEK_CLOSEST)
             binding.status.text = getTime(mediaPlayer!!.currentPosition)
         }
+    }
+
+    private fun seek() {
+
     }
 
     private fun cut() {
@@ -304,6 +264,7 @@ class BrowserActivity: AppCompatActivity() {
             override fun run() {
                 binding.status.text = getTime(mediaPlayer!!.currentPosition)
                 handler.postDelayed(this, 100)
+                updateCurrent()
             }
         }, 100)
         binding.duration.text = getTime(mediaPlayer!!.duration)
@@ -316,12 +277,41 @@ class BrowserActivity: AppCompatActivity() {
         return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
     }
 
+    private fun updateCurrent() {
+        val pct = mediaPlayer!!.currentPosition / mediaPlayer!!.duration.toFloat()
+        val offset = pct * binding.bar.width
+        val params = binding.current.layoutParams as FrameLayout.LayoutParams
+        params.leftMargin = offset.toInt() + dpToPx(15f).toInt()
+        binding.current.layoutParams = params
+    }
+
+    private fun dpToPx(dp: Float) : Float {
+        val px = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp,
+            resources.displayMetrics
+        )
+        return px
+    }
+
+//    private fun checkSeek(v: View) {
+//        if (v.tag.toString() == "left") {
+//
+//        }
+//        if (v.tag.toString() == "right") {
+//
+//        }
+//    }
+
     private val onTouchListener = object : View.OnTouchListener {
         var prevX = 0
         var tag = ""
         var params: FrameLayout.LayoutParams? = null
         var other: ImageView? = null
         var otherParams: FrameLayout.LayoutParams? = null
+        var currentParams: FrameLayout.LayoutParams? = null
+        var seek = false
+
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             if (v == null || event == null) {
                 return false
@@ -332,23 +322,44 @@ class BrowserActivity: AppCompatActivity() {
                     if (params != null && otherParams != null) {
                         val leftMargin = params!!.leftMargin + diffX
                         if (tag == "left" && leftMargin < otherParams!!.leftMargin) {
+                            if (leftMargin < 0) {
+                                return true
+                            }
                             params!!.leftMargin = leftMargin
                             v.layoutParams = params
+                            if (leftMargin + dpToPx(15f) > currentParams!!.leftMargin) {
+                                currentParams!!.leftMargin = leftMargin + dpToPx(15f).toInt()
+                                binding.current.layoutParams = currentParams
+                                seek = true
+                            }
                             prevX = event.rawX.toInt()
                         }
                         if (tag == "right" && leftMargin > otherParams!!.leftMargin) {
+                            if (leftMargin > binding.bar.width) {
+                                return true
+                            }
                             params!!.leftMargin = leftMargin
                             v.layoutParams = params
+                            if (leftMargin + dpToPx(15f) < currentParams!!.leftMargin) {
+                                currentParams!!.leftMargin = leftMargin + dpToPx(15f).toInt()
+                                binding.current.layoutParams = currentParams
+                                seek = true
+                            }
                             prevX = event.rawX.toInt()
                         }
                     }
                 }
                 MotionEvent.ACTION_UP -> {
+                    if (seek) {
+                        seek()
+                    }
                     prevX = 0
                     tag = ""
                     params = null
                     other = null
                     otherParams = null
+                    currentParams = null
+                    seek = false
                 }
                 MotionEvent.ACTION_DOWN -> {
                     prevX = event.rawX.toInt()
@@ -360,6 +371,7 @@ class BrowserActivity: AppCompatActivity() {
                         binding.limitLeft
                     }
                     otherParams = other!!.layoutParams as FrameLayout.LayoutParams
+                    currentParams = binding.current.layoutParams as FrameLayout.LayoutParams
                 }
             }
             return true
