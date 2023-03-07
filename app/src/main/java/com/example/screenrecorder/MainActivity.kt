@@ -220,6 +220,10 @@ class BrowserActivity: AppCompatActivity() {
     }
 
     private fun cut() {
+        fun showToast(msg: String) {
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        }
+
         viewModel.activity = this
         viewModel.job = viewModel.viewModelScope.launch(Dispatchers.IO) {
 
@@ -247,17 +251,15 @@ class BrowserActivity: AppCompatActivity() {
                 when (result) {
                     RETURN_CODE_SUCCESS -> {
                         Log.v("TEST", "Command completed successfully")
-                        Toast.makeText(viewModel.activity,
-                            "Video created (video-trim.mp4)",
-                            Toast.LENGTH_SHORT).show()
+                        showToast("Video created (video-trim.mp4)")
                     }
                     RETURN_CODE_CANCEL -> {
-                        Log.v("TEST", "Command cancelled by user")
+                        Log.v("TEST", "Command cancelled")
+                        showToast("Error creating video")
                     }
                     else -> {
-                        Log.v("TEST",
-                            String.format("Command execution failed with result=%d and the output below.",
-                                result))
+                        Log.v("TEST", String.format("Command failed with result=%d", result))
+                        showToast("Error creating video")
                     }
                 }
             }
