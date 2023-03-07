@@ -58,6 +58,7 @@ class BrowserActivityViewModel : ViewModel() {
 class BrowserActivity: AppCompatActivity() {
 
     private lateinit var binding: ActivityBrowserBinding
+    private var videos = mutableListOf<Video>()
     private lateinit var videosAdapter: VideosAdapter
     private var currentVideo: Video? = null
     private lateinit var displayMetrics: DisplayMetrics
@@ -100,13 +101,7 @@ class BrowserActivity: AppCompatActivity() {
         videosAdapter = VideosAdapter { video -> adapterOnClick(video) }
         val recyclerView: RecyclerView = binding.recyclerView
         recyclerView.adapter = videosAdapter
-        val videos = mutableListOf<Video>()
-        File(this.filesDir.toString()).walk().forEach { file ->
-            if (file.extension == "mp4") {
-                val video = Video(file)
-                videos.add(video)
-            }
-        }
+        updateVideos()
         videosAdapter.submitList(videos)
 
         binding.play.setOnClickListener { play() }
@@ -123,6 +118,9 @@ class BrowserActivity: AppCompatActivity() {
             binding.boundRight.layoutParams = params
         }
 
+        binding.nameClose.setOnClickListener {
+            binding.nameLayout.visibility = RelativeLayout.GONE
+        }
         binding.cut.setOnClickListener {
             val cutFrom = binding.timeFrom.currentTextColor == ContextCompat.getColor(this, R.color.red)
             val cutTo = binding.timeTo.currentTextColor == ContextCompat.getColor(this, R.color.red)
@@ -131,11 +129,16 @@ class BrowserActivity: AppCompatActivity() {
                 binding.nameLayout.visibility = RelativeLayout.VISIBLE
                 binding.nameButton.setOnClickListener {
                     val name = binding.name.text.toString()
-                    cut(name.replace(".mp4", ""))
-                    binding.videoView.visibility = RelativeLayout.GONE
-                    binding.recyclerView.visibility = RelativeLayout.VISIBLE
-                    binding.nameLayout.visibility = RelativeLayout.GONE
-                    binding.nameButton.setOnClickListener(null)
+                    cut(name.replace(".mp4", "")) { success ->
+                        if (success) {
+                            binding.videoView.visibility = RelativeLayout.GONE
+                            binding.recyclerView.visibility = RelativeLayout.VISIBLE
+                            binding.nameLayout.visibility = RelativeLayout.GONE
+                            binding.nameButton.setOnClickListener(null)
+                            updateVideos()
+                            videosAdapter.notifyDataSetChanged()
+                        }
+                    }
                 }
             } else {
                 Toast.makeText(this, "Select bounds", Toast.LENGTH_SHORT).show()
@@ -150,6 +153,16 @@ class BrowserActivity: AppCompatActivity() {
     private fun adapterOnClick(video: Video) {
         currentVideo = video
         retriever.setDataSource(applicationContext, video.file.toUri())
+    }
+
+    private fun updateVideos() {
+        videos.clear()
+        File(this.filesDir.toString()).walk().forEach { file ->
+            if (file.extension == "mp4") {
+                val video = Video(file)
+                videos.add(video)
+            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
@@ -255,7 +268,7 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    private fun cut(name: String) {
+    private fun cut(name: String, callback: ((Boolean) -> Unit)) {
         fun showToast(msg: String) {
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         }
@@ -284,14 +297,17 @@ class BrowserActivity: AppCompatActivity() {
                     RETURN_CODE_SUCCESS -> {
                         Log.v("TEST", "Command completed successfully")
                         showToast("Video created (${name}.mp4)")
+                        callback(true)
                     }
                     RETURN_CODE_CANCEL -> {
                         Log.v("TEST", "Command cancelled")
                         showToast("Error creating video")
+                        callback(false)
                     }
                     else -> {
                         Log.v("TEST", String.format("Command failed with result=%d", result))
                         showToast("Error creating video")
+                        callback(false)
                     }
                 }
             }
