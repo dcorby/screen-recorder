@@ -95,7 +95,7 @@
                     android:background="@color/red">
                 </RelativeLayout>
                 <ImageView
-                    android:id="@+id/limit_left"
+                    android:id="@+id/bound_left"
                     android:tag="left"
                     android:layout_height="30dp"
                     android:layout_width="30dp"
@@ -103,7 +103,7 @@
                     android:src="@drawable/ic_baseline_circle_30">
                 </ImageView>
                 <ImageView
-                    android:id="@+id/limit_right"
+                    android:id="@+id/bound_right"
                     android:tag="right"
                     android:layout_height="30dp"
                     android:layout_width="30dp"

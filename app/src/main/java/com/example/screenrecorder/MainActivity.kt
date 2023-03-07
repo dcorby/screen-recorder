@@ -42,7 +42,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
 const val OVERLAY_PERMISSION_CODE = 2
 
@@ -120,9 +119,9 @@ class BrowserActivity: AppCompatActivity() {
         //binding.root.viewTreeObserver.addOnGlobalLayoutListener {
         binding.bar.post {
             val width = binding.bar.width
-            val params = binding.limitRight.layoutParams as FrameLayout.LayoutParams
+            val params = binding.boundRight.layoutParams as FrameLayout.LayoutParams
             params.leftMargin = width
-            binding.limitRight.layoutParams = params
+            binding.boundRight.layoutParams = params
         }
 
         binding.cut.setOnClickListener {
@@ -163,8 +162,8 @@ class BrowserActivity: AppCompatActivity() {
                     binding.timeFrom.text = "00:00:00"
                     binding.timeTo.text = getTime(mediaPlayer!!.duration)
                     mediaPlayer?.setOnCompletionListener { pause() }
-                    binding.limitLeft.setOnTouchListener(onTouchListener)
-                    binding.limitRight.setOnTouchListener(onTouchListener)
+                    binding.boundLeft.setOnTouchListener(onTouchListener)
+                    binding.boundRight.setOnTouchListener(onTouchListener)
                 }
             }
             binding.play.visibility = RelativeLayout.GONE
@@ -184,6 +183,7 @@ class BrowserActivity: AppCompatActivity() {
         binding.play.visibility = RelativeLayout.VISIBLE
         handler.removeCallbacksAndMessages(null)
         binding.status.text = "00:00:00"
+        binding.duration.text = "00:00:00"
 
         // I believe these are redundant operations
         binding.videoView.stopPlayback()
@@ -192,6 +192,14 @@ class BrowserActivity: AppCompatActivity() {
         //mediaPlayer?.release()
 
         mediaPlayer = null
+
+        (binding.boundLeft.layoutParams as FrameLayout.LayoutParams).leftMargin = 0
+        (binding.boundRight.layoutParams as FrameLayout.LayoutParams).leftMargin = binding.bar.width
+        (binding.current.layoutParams as FrameLayout.LayoutParams).leftMargin = dpToPx(15f).toInt()
+        binding.timeFrom.text = "00:00:00"
+        binding.timeFrom.setTextColor(Color.parseColor("#ffffff"))
+        binding.timeTo.text = "00:00:00"
+        binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -203,14 +211,12 @@ class BrowserActivity: AppCompatActivity() {
             }
             if (to > mediaPlayer!!.duration) {
                 to = mediaPlayer!!.duration
+                pause()
             }
             mediaPlayer!!.seekTo(to.toLong(), MediaPlayer.SEEK_CLOSEST)
+            updateCurrent()
             binding.status.text = getTime(mediaPlayer!!.currentPosition)
         }
-    }
-
-    private fun seek() {
-
     }
 
     private fun cut() {
@@ -261,8 +267,8 @@ class BrowserActivity: AppCompatActivity() {
     private fun startTimer() {
         binding.status.text = getTime(mediaPlayer!!.currentPosition)
         handler.postDelayed(object : Runnable {
+            @RequiresApi(Build.VERSION_CODES.O)
             override fun run() {
-                binding.status.text = getTime(mediaPlayer!!.currentPosition)
                 handler.postDelayed(this, 100)
                 updateCurrent()
             }
@@ -277,12 +283,56 @@ class BrowserActivity: AppCompatActivity() {
         return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun updateCurrent() {
+        checkBounds()
         val pct = mediaPlayer!!.currentPosition / mediaPlayer!!.duration.toFloat()
         val offset = pct * binding.bar.width
         val params = binding.current.layoutParams as FrameLayout.LayoutParams
         params.leftMargin = offset.toInt() + dpToPx(15f).toInt()
         binding.current.layoutParams = params
+        binding.status.text = getTime(mediaPlayer!!.currentPosition)
+
+        updateBounds()
+    }
+
+    private fun updateBounds() {
+        // Update bound times
+        if ((binding.boundLeft.layoutParams as FrameLayout.LayoutParams).leftMargin > 0) {
+            binding.timeFrom.text = getTime(getBoundPosition(binding.boundLeft))
+            binding.timeFrom.setTextColor(Color.parseColor("#9e1a1a"))
+        } else {
+            binding.timeFrom.text = "00:00:00"
+            binding.timeFrom.setTextColor(Color.parseColor("#ffffff"))
+        }
+        if ((binding.boundRight.layoutParams as FrameLayout.LayoutParams).leftMargin < binding.bar.width) {
+            binding.timeTo.text = getTime(getBoundPosition(binding.boundRight))
+            binding.timeTo.setTextColor(Color.parseColor("#9e1a1a"))
+        } else {
+            binding.timeTo.text = getTime(mediaPlayer!!.duration)
+            binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun checkBounds() {
+        val leftPosition = getBoundPosition(binding.boundLeft)
+        if (mediaPlayer!!.currentPosition < leftPosition) {
+            mediaPlayer!!.seekTo(leftPosition.toLong(), MediaPlayer.SEEK_CLOSEST)
+
+        }
+        val rightPosition = getBoundPosition(binding.boundRight)
+        if (mediaPlayer!!.currentPosition > rightPosition) {
+            mediaPlayer!!.seekTo(rightPosition.toLong(), MediaPlayer.SEEK_CLOSEST)
+            pause()
+        }
+    }
+
+    private fun getBoundPosition(v: View) : Int {
+        val params = v.layoutParams as FrameLayout.LayoutParams
+        val pct = params.leftMargin / binding.bar.width.toFloat()
+        val ms = (pct * mediaPlayer!!.duration).toInt()
+        return ms
     }
 
     private fun dpToPx(dp: Float) : Float {
@@ -294,15 +344,14 @@ class BrowserActivity: AppCompatActivity() {
         return px
     }
 
-//    private fun checkSeek(v: View) {
-//        if (v.tag.toString() == "left") {
-//
-//        }
-//        if (v.tag.toString() == "right") {
-//
-//        }
-//    }
-
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun seek() {
+        val params = binding.current.layoutParams as FrameLayout.LayoutParams
+        val pct = (params.leftMargin - dpToPx(15f)) / binding.bar.width.toFloat()
+        val ms = pct * mediaPlayer!!.duration
+        mediaPlayer!!.seekTo(ms.toLong(), MediaPlayer.SEEK_CLOSEST)
+        updateCurrent()
+    }
     private val onTouchListener = object : View.OnTouchListener {
         var prevX = 0
         var tag = ""
@@ -312,6 +361,7 @@ class BrowserActivity: AppCompatActivity() {
         var currentParams: FrameLayout.LayoutParams? = null
         var seek = false
 
+        @RequiresApi(Build.VERSION_CODES.O)
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             if (v == null || event == null) {
                 return false
@@ -360,15 +410,16 @@ class BrowserActivity: AppCompatActivity() {
                     otherParams = null
                     currentParams = null
                     seek = false
+                    updateBounds()
                 }
                 MotionEvent.ACTION_DOWN -> {
                     prevX = event.rawX.toInt()
                     params = v.layoutParams as FrameLayout.LayoutParams
                     tag = v.tag.toString()
                     other = if (tag == "left") {
-                        binding.limitRight
+                        binding.boundRight
                     } else {
-                        binding.limitLeft
+                        binding.boundLeft
                     }
                     otherParams = other!!.layoutParams as FrameLayout.LayoutParams
                     currentParams = binding.current.layoutParams as FrameLayout.LayoutParams
