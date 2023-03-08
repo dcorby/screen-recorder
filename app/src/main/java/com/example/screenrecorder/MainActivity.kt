@@ -1,8 +1,3 @@
-TODO: 1) Allow rename (blue button in listview)
-      2) when user presses play initially, just load the video and immediately pause at seek(0)
-      3) allow user to seek by touching bar
-      4) Add sound??
-
 package com.example.screenrecorder
 
 import android.annotation.SuppressLint
@@ -110,6 +105,7 @@ class BrowserActivity: AppCompatActivity() {
 
         videosAdapter = VideosAdapter(
                             { video, view -> adapterOnClick(video, view) },
+                            { video, button, callback -> adapterOnRename(video, button, callback) },
                             { video, button -> adapterOnDelete(video, button) })
         val recyclerView: RecyclerView = binding.recyclerView
         recyclerView.adapter = videosAdapter
@@ -167,6 +163,26 @@ class BrowserActivity: AppCompatActivity() {
     private fun adapterOnClick(video: Video, view: View) {
         currentVideo = video
         retriever.setDataSource(applicationContext, video.file.toUri())
+    }
+
+    private fun adapterOnRename(video: Video, button: Button, callback: (() -> Unit)) {
+        val layout = (button.parent.parent.parent as View).findViewById<LinearLayout>(R.id.item_rename)
+        layout.visibility = LinearLayout.VISIBLE
+        val editText = layout.findViewById<EditText>(R.id.name)
+        val button = layout.findViewById<Button>(R.id.do_rename)
+        button.setOnClickListener {
+            val name = editText.text.toString().replace(".mp4", "").trim()
+            if (name == "") {
+                Toast.makeText(this, "Enter a name for the file", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            var newFile = File(video.file.parent, name + ".mp4")
+            video.file.renameTo(newFile)
+            layout.visibility = LinearLayout.GONE
+            updateVideos()
+            videosAdapter.notifyDataSetChanged()
+            callback()
+        }
     }
 
     private fun adapterOnDelete(video: Video, button: Button) {

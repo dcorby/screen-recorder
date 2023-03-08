@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 
 class VideosAdapter(private val onClick: (Video, View) -> Unit,
+                    private val onRename: (Video, Button, (() -> Unit)) -> Unit,
                     private val onDelete: (Video, Button) -> Unit) :
     ListAdapter<Video, VideosAdapter.VideoItemViewHolder>(VideoItemDiffCallback) {
 
@@ -25,19 +26,24 @@ class VideosAdapter(private val onClick: (Video, View) -> Unit,
     inner class VideoItemViewHolder(
         private val itemView: View,
         val onClick: (Video, View) -> Unit,
+        val onRename: (Video, Button, (() -> Unit)) -> Unit,
         val onDelete: (Video, Button) -> Unit)
         : RecyclerView.ViewHolder(itemView) {
 
         private val textView: TextView = itemView.findViewById(R.id.text_view)
         private val delete: Button = itemView.findViewById(R.id.delete)
-        private val layout: LinearLayout = itemView.findViewById(R.id.layout)
+        private val rename: Button = itemView.findViewById(R.id.rename)
+        private val layout: LinearLayout = itemView.findViewById(R.id.item_layout)
 
         // Bind data to view
         fun bind(video: Video) {
             textView.text = video.label
 
-            if (video.filename == "video.mp4") {
-                itemView.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.red))
+            rename.setOnClickListener {
+                onRename(video, rename) {
+                    delete.visibility = RelativeLayout.GONE
+                    rename.visibility = RelativeLayout.GONE
+                }
             }
 
             delete.setOnClickListener {
@@ -50,6 +56,13 @@ class VideosAdapter(private val onClick: (Video, View) -> Unit,
 
                 var callback = Runnable {
                     isLong = true
+                    if (delete.isVisible) {
+                        delete.visibility = RelativeLayout.GONE
+                        rename.visibility = RelativeLayout.GONE
+                    } else {
+                        delete.visibility = RelativeLayout.VISIBLE
+                        rename.visibility = RelativeLayout.VISIBLE
+                    }
                 }
                 override fun onTouch(v: View?, event: MotionEvent?): Boolean {
                     if (event == null || v == null) {
@@ -65,14 +78,18 @@ class VideosAdapter(private val onClick: (Video, View) -> Unit,
                         MotionEvent.ACTION_UP -> {
                             handler.removeCallbacks(callback)
                             if (isLong) {
-                                if (delete.isVisible) {
-                                    delete.visibility = RelativeLayout.GONE
-                                } else {
-                                    delete.visibility = RelativeLayout.VISIBLE
-                                }
+//                                if (delete.isVisible) {
+//                                    delete.visibility = RelativeLayout.GONE
+//                                    rename.visibility = RelativeLayout.GONE
+//                                } else {
+//                                    delete.visibility = RelativeLayout.VISIBLE
+//                                    rename.visibility = RelativeLayout.VISIBLE
+//                                }
                             } else {
-                                currentLayout?.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.white))
-                                layout.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.gray2))
+                                //currentLayout?.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.white))
+                                currentLayout?.background = ContextCompat.getDrawable(itemView.context, R.drawable.border_black_top)
+                                //layout.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.gray2))
+                                layout.background = ContextCompat.getDrawable(itemView.context, R.drawable.border_gray_top)
                                 onClick(video, layout)
                                 currentLayout = layout
                             }
@@ -88,7 +105,7 @@ class VideosAdapter(private val onClick: (Video, View) -> Unit,
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoItemViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_video, parent, false)
-        return VideoItemViewHolder(view, onClick, onDelete)
+        return VideoItemViewHolder(view, onClick, onRename, onDelete)
     }
 
     override fun onBindViewHolder(viewHolder: VideoItemViewHolder, position: Int) {

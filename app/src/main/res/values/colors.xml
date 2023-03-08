@@ -21,5 +21,6 @@
     <color name="gray3">#cccccc</color>
     <color name="gray4">#333333</color>
     <color name="blue">#7EC8E3</color>
+    <color name="blue2">#0000ff</color>
     <color name="graybeige">#f0ece8</color>
 </resources>

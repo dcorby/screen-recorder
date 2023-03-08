@@ -5,19 +5,18 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="1dp">
-    <LinearLayout
+
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:background="@drawable/border_black_top">
+        android:layout_height="match_parent">
+
         <LinearLayout
-            android:id="@+id/layout"
+            android:id="@+id/item_layout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:background="@drawable/border_black_top">
+
             <TextView
                 android:id="@+id/text_view"
                 android:layout_width="0dp"
@@ -28,20 +27,82 @@
                 android:textSize="18sp"
                 android:textColor="@color/gray4"
                 android:gravity="center_vertical" />
-            <Button
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/rename"
+                android:visibility="gone"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="2dp"
+                android:layout_marginRight="10dp"
+                android:backgroundTint="@color/blue2"
+                android:text="Rename"
+                android:textColor="@color/white"
+                android:gravity="center"
+                android:textSize="14sp"
+                android:layout_gravity="right|center_vertical">
+            </androidx.appcompat.widget.AppCompatButton>
+            <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/delete"
                 android:visibility="gone"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                android:layout_marginTop="5dp"
-                android:layout_marginBottom="5dp"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="2dp"
                 android:layout_marginRight="10dp"
-                android:background="@color/red2"
+                android:backgroundTint="@color/red2"
                 android:text="Delete"
-                android:gravity="center_vertical"
+                android:textColor="@color/white"
+                android:gravity="center"
                 android:textSize="14sp"
                 android:layout_gravity="right|center_vertical">
-            </Button>
+            </androidx.appcompat.widget.AppCompatButton>
         </LinearLayout>
-    </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/item_rename"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="right"
+            android:background="@drawable/border_black_top">
+            <EditText
+                android:id="@+id/name"
+                android:layout_weight="0"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="200dp"
+                android:layout_gravity="right">
+            </EditText>
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/do_rename"
+                android:layout_weight="0"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="2dp"
+                android:layout_marginLeft="15dp"
+                android:backgroundTint="@color/blue2"
+                android:text="Rename"
+                android:textColor="@color/white"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:textSize="14sp">
+            </androidx.appcompat.widget.AppCompatButton>
+            <ImageView
+                android:id="@+id/close"
+                android:layout_weight="0"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="2dp"
+                android:layout_marginLeft="15dp"
+                android:layout_marginRight="15dp"
+                android:layout_gravity="right"
+                android:src="@drawable/ic_baseline_close_24">
+            </ImageView>
+        </LinearLayout>
+
+    </FrameLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

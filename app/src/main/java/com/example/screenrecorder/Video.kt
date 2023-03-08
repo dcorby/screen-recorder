@@ -5,5 +5,5 @@ import java.io.File
 class Video(file: File) {
     val file = file
     var filename = file.name
-    var label = file.name
+    var label = file.name.replace(".mp4", "")
 }
