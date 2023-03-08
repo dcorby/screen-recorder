@@ -1,6 +1,7 @@
 TODO: 1) Allow rename (blue button in listview)
       2) when user presses play initially, just load the video and immediately pause at seek(0)
       3) allow user to seek by touching bar
+      4) Add sound??
 
 package com.example.screenrecorder
 
