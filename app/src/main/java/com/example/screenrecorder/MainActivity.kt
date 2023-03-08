@@ -70,7 +70,6 @@ class BrowserActivity: AppCompatActivity() {
     private var mediaPlayer: MediaPlayer? = null
     private var retriever = MediaMetadataRetriever()
     private val handler = Handler(Looper.getMainLooper())
-    private var duration = -1
     private lateinit var viewModel: BrowserActivityViewModel
     private var baseDir = ""
 
@@ -155,6 +154,7 @@ class BrowserActivity: AppCompatActivity() {
             }
         }
 
+
         // Display metrics are needed for framesHolder
         displayMetrics = DisplayMetrics()
         windowManager.getDefaultDisplay().getMetrics(displayMetrics)
@@ -209,6 +209,8 @@ class BrowserActivity: AppCompatActivity() {
             Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
         } else {
             if (mediaPlayer != null) {
+                binding.play.visibility = RelativeLayout.GONE
+                binding.pause.visibility = RelativeLayout.VISIBLE
                 binding.videoView.start()
                 startTimer()
             } else {
@@ -219,25 +221,20 @@ class BrowserActivity: AppCompatActivity() {
                 binding.videoView.requestFocus()
                 binding.videoView.setOnPreparedListener {
                     mediaPlayer = it
-                    binding.videoView.start()
-                    binding.videoView.setMediaController(null)
-                    startTimer()
-                    duration = mediaPlayer!!.duration
                     binding.timeFrom.text = "00:00:00"
                     binding.timeTo.text = getTime(mediaPlayer!!.duration)
-                    mediaPlayer?.setOnCompletionListener {
+                    mediaPlayer!!.setOnCompletionListener {
                         stop(false)
                         /* stop() is pretty blunt here, but encountering a strange issue
                            where some tracks replay mid-track, even after seeking to zero
                            in this callback
                          */
                     }
-                    binding.boundLeft.setOnTouchListener(onTouchListener)
-                    binding.boundRight.setOnTouchListener(onTouchListener)
+                    binding.boundLeft.setOnTouchListener(onBoundTouchListener)
+                    binding.boundRight.setOnTouchListener(onBoundTouchListener)
+                    binding.barHolder.setOnTouchListener(onBarTouchListener)
                 }
             }
-            binding.play.visibility = RelativeLayout.GONE
-            binding.pause.visibility = RelativeLayout.VISIBLE
         }
     }
 
@@ -282,6 +279,7 @@ class BrowserActivity: AppCompatActivity() {
 
         binding.boundLeft.setOnTouchListener(null)
         binding.boundRight.setOnTouchListener(null)
+        binding.barHolder.setOnTouchListener(null)
 
         if (toggleScreen) {
             binding.videoView.visibility = RelativeLayout.GONE
@@ -440,7 +438,59 @@ class BrowserActivity: AppCompatActivity() {
         mediaPlayer!!.seekTo(ms.toLong(), MediaPlayer.SEEK_CLOSEST)
         updateCurrent()
     }
-    private val onTouchListener = object : View.OnTouchListener {
+
+    private val onBarTouchListener = object : View.OnTouchListener {
+        var prevX = 0
+        var params: FrameLayout.LayoutParams? = null
+        var leftMargin = -1
+
+        @RequiresApi(Build.VERSION_CODES.O)
+        private fun moveCurrent(diffX: Int, event: MotionEvent) {
+            val currentLocation = IntArray(2)
+            val leftLocation = IntArray(2)
+            val rightLocation = IntArray(2)
+            binding.current.getLocationOnScreen(currentLocation)
+            binding.current.getLocationOnScreen(leftLocation)
+            binding.current.getLocationOnScreen(rightLocation)
+            if (currentLocation[0] < leftLocation[0] || currentLocation[0] > rightLocation[0]) {
+                return
+            }
+
+            leftMargin += diffX
+            params!!.leftMargin = leftMargin
+            binding.current.layoutParams = params
+            prevX = event.rawX.toInt()
+            seek()
+        }
+
+        @RequiresApi(Build.VERSION_CODES.O)
+        override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+            if (v == null || event == null) {
+                return false
+            }
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    params = binding.current.layoutParams as FrameLayout.LayoutParams
+                    leftMargin = params!!.leftMargin
+                    val location = IntArray(2)
+                    binding.current.getLocationOnScreen(location)
+                    val diffX = event.rawX.toInt() - location[0]
+                    moveCurrent(diffX, event)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val diffX = event.rawX.toInt() - prevX
+                    moveCurrent(diffX, event)
+                }
+                MotionEvent.ACTION_UP -> {
+                    val diffX = event.rawX.toInt() - prevX
+                    moveCurrent(diffX, event)
+                }
+            }
+            return true
+        }
+    }
+
+    private val onBoundTouchListener = object : View.OnTouchListener {
         var prevX = 0
         var tag = ""
         var params: FrameLayout.LayoutParams? = null
