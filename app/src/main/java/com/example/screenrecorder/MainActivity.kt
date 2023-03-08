@@ -16,10 +16,12 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
+import android.text.InputType
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
 import android.view.*
+import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
@@ -41,6 +43,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
 
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
@@ -561,12 +565,14 @@ class MainActivity : Activity() {
         private var isRecording = false
         private lateinit var virtualDisplay: VirtualDisplay
         private lateinit var mediaProjectionCallback: MediaProjectionCallback
+        private lateinit var windowParams: WindowManager.LayoutParams
         private var mediaRecorder = MediaRecorder()
         private var screenWidth = -1
         private var screenHeight = -1
         private var hideLayout = false
         private var recordingName = ""
 
+        @SuppressLint("ClickableViewAccessibility")
         @RequiresApi(Build.VERSION_CODES.O)
         override fun onCreate() {
             super.onCreate()
@@ -578,15 +584,15 @@ class MainActivity : Activity() {
             overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.black))
             //overlay.alpha = 0.50f
             overlay.setBackgroundColor(Color.parseColor("#80000000"))
-            val params = WindowManager.LayoutParams(
+            windowParams = WindowManager.LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 100,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             )
-            params.gravity = Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
-            windowManager.addView(overlay, params)
+            windowParams.gravity = Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
+            windowManager.addView(overlay, windowParams)
 
             // Create a horizontal linear layout with three equally weighted children
             LinearLayout(this).let { layout ->
@@ -755,7 +761,6 @@ class MainActivity : Activity() {
                 form.visibility = LinearLayout.GONE
                 form.setBackgroundColor(resources.getColor(R.color.white))
 
-                // edittext, button, imageview
                 EditText(this).let { editText ->
                     editText.tag = "name"
                     val params = LinearLayout.LayoutParams(
@@ -765,7 +770,9 @@ class MainActivity : Activity() {
                     )
                     params.leftMargin = dpToPx(50f).toInt()
                     editText.layoutParams = params
+                    editText.inputType = InputType.TYPE_CLASS_TEXT
                     form.addView(editText)
+                    // Keyboard issues...
                 }
                 Button(this).let { button ->
                     button.tag = "record"
@@ -796,7 +803,7 @@ class MainActivity : Activity() {
                     imageView.setImageResource(R.drawable.ic_baseline_close_24)
                     form.addView(imageView)
                 }
-                overlay.addView(form)
+                //overlay.addView(form)
             }
         }
 
@@ -831,38 +838,23 @@ class MainActivity : Activity() {
         @SuppressLint("ClickableViewAccessibility")
         private fun record(imageView: ImageView) {
             if (imageView.tag.toString() == "record") {
-                form.visibility = LinearLayout.VISIBLE
-                val name = form.findViewWithTag("name") as EditText
-                val button = form.findViewWithTag("record") as Button
-                val close = form.findViewWithTag("close") as ImageView
-                close.setOnClickListener {
-                    form.visibility = LinearLayout.GONE
+                val sdf = SimpleDateFormat("yyyy-MM-dd-hh-mm-ss")
+                recordingName = sdf.format(Date())
+                record?.visibility = LinearLayout.GONE
+                recording?.visibility = LinearLayout.VISIBLE
+                if (hideLayout) {
+                    windowManager.removeView(overlay)
+                    val panel = PanelLayout(this, ::stopRecording)
+                    val params = WindowManager.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                        -999,
+                        PixelFormat.TRANSLUCENT
+                    )
+                    windowManager.addView(panel, params)
                 }
-                button.setOnClickListener {
-                    recordingName = name.text.toString().replace(".mp4", "").trim()
-                    if (recordingName == "") {
-                        Toast.makeText(this, "Enter a name for recording", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-                    record?.visibility = LinearLayout.GONE
-                    recording?.visibility = LinearLayout.VISIBLE
-                    if (hideLayout) {
-                        windowManager.removeView(overlay)
-                        val panel = PanelLayout(this, ::stopRecording)
-                        //overlay.alpha = 0.50f
-                        //overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
-                        //overlay.setBackgroundColor(Color.parseColor("#00000000"))
-                        val params = WindowManager.LayoutParams(
-                            LayoutParams.MATCH_PARENT,
-                            LayoutParams.MATCH_PARENT,
-                            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                            -999,
-                            PixelFormat.TRANSLUCENT
-                        )
-                        windowManager.addView(panel, params)
-                    }
-                    startRecording()
-                }
+                startRecording()
             }
             if (imageView.tag.toString() == "recording") {
                 recording?.visibility = LinearLayout.GONE
