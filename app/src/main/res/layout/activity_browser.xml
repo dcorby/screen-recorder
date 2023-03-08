@@ -42,12 +42,17 @@
         app:layout_constraintBottom_toTopOf="@+id/studio"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent">
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler_view"
-            app:layoutManager="LinearLayoutManager"
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
-        </androidx.recyclerview.widget.RecyclerView>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recycler_view"
+                app:layoutManager="LinearLayoutManager"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/border_black_bottom">
+            </androidx.recyclerview.widget.RecyclerView>
+        </RelativeLayout>
         <VideoView
             android:id="@+id/video_view"
             android:layout_width="match_parent"
@@ -121,7 +126,7 @@
                 <!-- name -->
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:id="@+id/name_layout"
-
+                    android:visibility="gone"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@color/white"

@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
 const val OVERLAY_PERMISSION_CODE = 2
 
@@ -98,7 +99,9 @@ class BrowserActivity: AppCompatActivity() {
         baseDir = this.filesDir.toString()
         viewModel = ViewModelProvider(this).get(BrowserActivityViewModel::class.java)
 
-        videosAdapter = VideosAdapter { video -> adapterOnClick(video) }
+        videosAdapter = VideosAdapter(
+                            { video, view -> adapterOnClick(video, view) },
+                            { video, button -> adapterOnDelete(video, button) })
         val recyclerView: RecyclerView = binding.recyclerView
         recyclerView.adapter = videosAdapter
         updateVideos()
@@ -110,7 +113,6 @@ class BrowserActivity: AppCompatActivity() {
         binding.back10.setOnClickListener { seekDiff(-10) }
         binding.forward10.setOnClickListener { seekDiff(10) }
 
-        //binding.root.viewTreeObserver.addOnGlobalLayoutListener {
         binding.bar.post {
             val width = binding.bar.width
             val params = binding.boundRight.layoutParams as FrameLayout.LayoutParams
@@ -125,14 +127,17 @@ class BrowserActivity: AppCompatActivity() {
             val cutFrom = binding.timeFrom.currentTextColor == ContextCompat.getColor(this, R.color.red)
             val cutTo = binding.timeTo.currentTextColor == ContextCompat.getColor(this, R.color.red)
             if (cutFrom || cutTo) {
-                stop(false)
+                pause()
                 binding.nameLayout.visibility = RelativeLayout.VISIBLE
                 binding.nameButton.setOnClickListener {
-                    val name = binding.name.text.toString()
-                    cut(name.replace(".mp4", "")) { success ->
+                    val name = binding.name.text.toString().replace(".mp4", "").trim()
+                    if (name == "") {
+                        Toast.makeText(this, "Enter a name for the cut file", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    cut(name) { success ->
                         if (success) {
-                            binding.videoView.visibility = RelativeLayout.GONE
-                            binding.recyclerView.visibility = RelativeLayout.VISIBLE
+                            stop(true)
                             binding.nameLayout.visibility = RelativeLayout.GONE
                             binding.nameButton.setOnClickListener(null)
                             updateVideos()
@@ -150,9 +155,17 @@ class BrowserActivity: AppCompatActivity() {
         windowManager.getDefaultDisplay().getMetrics(displayMetrics)
     }
 
-    private fun adapterOnClick(video: Video) {
+    private fun adapterOnClick(video: Video, view: View) {
         currentVideo = video
         retriever.setDataSource(applicationContext, video.file.toUri())
+    }
+
+    private fun adapterOnDelete(video: Video, button: Button) {
+        video.file.delete()
+        updateVideos()
+        videosAdapter.notifyDataSetChanged()
+        Toast.makeText(this, "Video ${video.filename} deleted", Toast.LENGTH_SHORT).show()
+        button.visibility = RelativeLayout.GONE    // Recycler View re-uses these
     }
 
     private fun updateVideos() {
@@ -282,7 +295,7 @@ class BrowserActivity: AppCompatActivity() {
             val cmd = arrayOf(
                 "-ss", "00:00:05",  // position (time duration specification)
                 "-y",   // overwrite output files without asking
-                "-i", baseDir + "/video.mp4",
+                "-i", baseDir + "/${currentVideo!!.file.nameWithoutExtension}.mp4",
                 "-codec:v", "libx264",
                 "-t", "00:00:08",  // duration, mutually exclusive with -to
                 "-map", "0",
@@ -368,7 +381,6 @@ class BrowserActivity: AppCompatActivity() {
     private fun checkBounds() {
         val leftPosition = getBoundPosition(binding.boundLeft)
         if (mediaPlayer!!.currentPosition < leftPosition) {
-            Log.v("TEST", "seekTo=${leftPosition.toLong()}")
             mediaPlayer!!.seekTo(leftPosition.toLong(), MediaPlayer.SEEK_CLOSEST)
 
         }
@@ -400,7 +412,6 @@ class BrowserActivity: AppCompatActivity() {
         val params = binding.current.layoutParams as FrameLayout.LayoutParams
         val pct = (params.leftMargin - dpToPx(15f)) / binding.bar.width.toFloat()
         val ms = pct * mediaPlayer!!.duration
-        Log.v("TEST", "seekTo=${ms.toLong()}")
         mediaPlayer!!.seekTo(ms.toLong(), MediaPlayer.SEEK_CLOSEST)
         updateCurrent()
     }
@@ -539,7 +550,8 @@ class MainActivity : Activity() {
     class Overlay : Service() {
 
         // Properties related to WindowManager and the UI
-        private lateinit var overlay: RelativeLayout
+        private lateinit var overlay: FrameLayout
+        private lateinit var form: LinearLayout
         private lateinit var windowManager: WindowManager
         private lateinit var record: ImageView
         private lateinit var recording: ImageView
@@ -553,6 +565,7 @@ class MainActivity : Activity() {
         private var screenWidth = -1
         private var screenHeight = -1
         private var hideLayout = false
+        private var recordingName = ""
 
         @RequiresApi(Build.VERSION_CODES.O)
         override fun onCreate() {
@@ -560,7 +573,7 @@ class MainActivity : Activity() {
 
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
             // https://stackoverflow.com/questions/6446221/get-context-in-a-service
-            overlay = RelativeLayout(this)
+            overlay = FrameLayout(this)
 
             overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.black))
             //overlay.alpha = 0.50f
@@ -734,6 +747,66 @@ class MainActivity : Activity() {
                     layout.addView(right)
                 }
             }
+            // end layout
+
+            // begin frame
+            LinearLayout(this).let {
+                form = it
+                form.visibility = LinearLayout.GONE
+                form.setBackgroundColor(resources.getColor(R.color.white))
+
+                // edittext, button, imageview
+                EditText(this).let { editText ->
+                    editText.tag = "name"
+                    val params = LinearLayout.LayoutParams(
+                        0,
+                        LayoutParams.MATCH_PARENT,
+                        1.0f
+                    )
+                    params.leftMargin = dpToPx(50f).toInt()
+                    editText.layoutParams = params
+                    form.addView(editText)
+                }
+                Button(this).let { button ->
+                    button.tag = "record"
+                    val params = LinearLayout.LayoutParams(
+                        LayoutParams.WRAP_CONTENT,
+                        LayoutParams.MATCH_PARENT
+                    )
+                    params.leftMargin = dpToPx(10f).toInt()
+                    params.rightMargin = dpToPx(25f).toInt()
+                    params.topMargin = dpToPx(10f).toInt()
+                    params.bottomMargin = dpToPx(10f).toInt()
+                    button.layoutParams = params
+                    button.text = "Record"
+                    button.setTextColor(Color.parseColor("#ffffff"))
+                    button.setBackgroundColor(resources.getColor(R.color.red))
+                    form.addView(button)
+                }
+                ImageView(this).let { imageView ->
+                    imageView.tag = "close"
+                    val params = LinearLayout.LayoutParams(
+                        LayoutParams.WRAP_CONTENT,
+                        LayoutParams.WRAP_CONTENT
+                    )
+                    params.leftMargin = dpToPx(25f).toInt()
+                    params.rightMargin = dpToPx(15f).toInt()
+                    params.gravity = Gravity.CENTER
+                    imageView.layoutParams = params
+                    imageView.setImageResource(R.drawable.ic_baseline_close_24)
+                    form.addView(imageView)
+                }
+                overlay.addView(form)
+            }
+        }
+
+        private fun dpToPx(dp: Float) : Float {
+            val px = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                dp,
+                resources.displayMetrics
+            )
+            return px
         }
 
         private fun launchBrowser() {
@@ -758,24 +831,38 @@ class MainActivity : Activity() {
         @SuppressLint("ClickableViewAccessibility")
         private fun record(imageView: ImageView) {
             if (imageView.tag.toString() == "record") {
-                record?.visibility = LinearLayout.GONE
-                recording?.visibility = LinearLayout.VISIBLE
-                if (hideLayout) {
-                    windowManager.removeView(overlay)
-                    val panel = PanelLayout(this, ::stopRecording)
-                    //overlay.alpha = 0.50f
-                    //overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
-                    //overlay.setBackgroundColor(Color.parseColor("#00000000"))
-                    val params = WindowManager.LayoutParams(
-                        LayoutParams.MATCH_PARENT,
-                        LayoutParams.MATCH_PARENT,
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                        -999,
-                        PixelFormat.TRANSLUCENT
-                    )
-                    windowManager.addView(panel, params)
+                form.visibility = LinearLayout.VISIBLE
+                val name = form.findViewWithTag("name") as EditText
+                val button = form.findViewWithTag("record") as Button
+                val close = form.findViewWithTag("close") as ImageView
+                close.setOnClickListener {
+                    form.visibility = LinearLayout.GONE
                 }
-                startRecording()
+                button.setOnClickListener {
+                    recordingName = name.text.toString().replace(".mp4", "").trim()
+                    if (recordingName == "") {
+                        Toast.makeText(this, "Enter a name for recording", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    record?.visibility = LinearLayout.GONE
+                    recording?.visibility = LinearLayout.VISIBLE
+                    if (hideLayout) {
+                        windowManager.removeView(overlay)
+                        val panel = PanelLayout(this, ::stopRecording)
+                        //overlay.alpha = 0.50f
+                        //overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.white))
+                        //overlay.setBackgroundColor(Color.parseColor("#00000000"))
+                        val params = WindowManager.LayoutParams(
+                            LayoutParams.MATCH_PARENT,
+                            LayoutParams.MATCH_PARENT,
+                            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                            -999,
+                            PixelFormat.TRANSLUCENT
+                        )
+                        windowManager.addView(panel, params)
+                    }
+                    startRecording()
+                }
             }
             if (imageView.tag.toString() == "recording") {
                 recording?.visibility = LinearLayout.GONE
@@ -788,7 +875,7 @@ class MainActivity : Activity() {
             openFull.visibility = RelativeLayout.INVISIBLE
             mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
             mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            mediaRecorder.setOutputFile(this.filesDir.toString() + "/video.mp4")
+            mediaRecorder.setOutputFile(this.filesDir.toString() + "/${recordingName}.mp4")
             mediaRecorder.setVideoSize(screenWidth, screenHeight)
             mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
             mediaRecorder.setVideoEncodingBitRate(512 * 1_000)

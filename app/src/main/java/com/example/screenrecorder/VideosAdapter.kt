@@ -2,31 +2,47 @@ package com.example.screenrecorder
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 
-class VideosAdapter(private val onClick: (Video) -> Unit) :
+class VideosAdapter(private val onClick: (Video, View) -> Unit,
+                    private val onDelete: (Video, Button) -> Unit) :
     ListAdapter<Video, VideosAdapter.VideoItemViewHolder>(VideoItemDiffCallback) {
 
-    var currentItemView: View? = null
+    var currentLayout: View? = null
 
     inner class VideoItemViewHolder(
         private val itemView: View,
-        val onClick: (Video) -> Unit) : RecyclerView.ViewHolder(itemView) {
+        val onClick: (Video, View) -> Unit,
+        val onDelete: (Video, Button) -> Unit)
+        : RecyclerView.ViewHolder(itemView) {
 
         private val textView: TextView = itemView.findViewById(R.id.text_view)
+        private val delete: Button = itemView.findViewById(R.id.delete)
+        private val layout: LinearLayout = itemView.findViewById(R.id.layout)
 
         // Bind data to view
         fun bind(video: Video) {
             textView.text = video.label
+
+            if (video.filename == "video.mp4") {
+                itemView.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.red))
+            }
+
+            delete.setOnClickListener {
+                onDelete(video, delete)
+            }
 
             itemView.setOnTouchListener(object : View.OnTouchListener {
                 private var handler = Handler(Looper.getMainLooper())
@@ -49,12 +65,16 @@ class VideosAdapter(private val onClick: (Video) -> Unit) :
                         MotionEvent.ACTION_UP -> {
                             handler.removeCallbacks(callback)
                             if (isLong) {
-                                Log.v("TEST", "long click")
+                                if (delete.isVisible) {
+                                    delete.visibility = RelativeLayout.GONE
+                                } else {
+                                    delete.visibility = RelativeLayout.VISIBLE
+                                }
                             } else {
-                                currentItemView?.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.white))
-                                itemView.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.gray2))
-                                onClick(video)
-                                currentItemView = itemView
+                                currentLayout?.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.white))
+                                layout.setBackgroundColor(ContextCompat.getColor(itemView.context, R.color.gray2))
+                                onClick(video, layout)
+                                currentLayout = layout
                             }
                             isLong = false
                             return true
@@ -68,7 +88,7 @@ class VideosAdapter(private val onClick: (Video) -> Unit) :
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoItemViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_video, parent, false)
-        return VideoItemViewHolder(view, onClick)
+        return VideoItemViewHolder(view, onClick, onDelete)
     }
 
     override fun onBindViewHolder(viewHolder: VideoItemViewHolder, position: Int) {
@@ -79,8 +99,6 @@ class VideosAdapter(private val onClick: (Video) -> Unit) :
     override fun onViewRecycled(holder: VideoItemViewHolder) {
         super.onViewRecycled(holder)
     }
-
-
 }
 
 object VideoItemDiffCallback : DiffUtil.ItemCallback<Video>() {
