@@ -230,9 +230,7 @@ class BrowserActivity: AppCompatActivity() {
                            in this callback
                          */
                     }
-                    binding.boundLeft.setOnTouchListener(onBoundTouchListener)
-                    binding.boundRight.setOnTouchListener(onBoundTouchListener)
-                    binding.barHolder.setOnTouchListener(onBarTouchListener)
+                    enableSeekBar()
                 }
             }
         }
@@ -251,13 +249,7 @@ class BrowserActivity: AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
         binding.status.text = "00:00:00"
         binding.duration.text = "00:00:00"
-
-        // I believe these are redundant operations
         binding.videoView.stopPlayback()
-        //mediaPlayer?.stop()
-        //mediaPlayer?.reset()
-        //mediaPlayer?.release()
-
         mediaPlayer = null
 
         val boundLeftParams = binding.boundLeft.layoutParams as FrameLayout.LayoutParams
@@ -277,11 +269,8 @@ class BrowserActivity: AppCompatActivity() {
         binding.timeTo.text = "00:00:00"
         binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
 
-        binding.boundLeft.setOnTouchListener(null)
-        binding.boundRight.setOnTouchListener(null)
-        binding.barHolder.setOnTouchListener(null)
-
         if (toggleScreen) {
+            disableSeekBar()
             binding.videoView.visibility = RelativeLayout.GONE
             binding.recyclerView.visibility = RelativeLayout.VISIBLE
         }
@@ -428,6 +417,26 @@ class BrowserActivity: AppCompatActivity() {
             resources.displayMetrics
         )
         return px
+    }
+
+    private fun enableSeekBar() {
+        binding.boundLeft.setImageResource(R.drawable.ic_baseline_circle_30)
+        binding.boundRight.setImageResource(R.drawable.ic_baseline_circle_30)
+        binding.bar.setBackgroundColor(ContextCompat.getColor(this, R.color.red))
+        binding.current.visibility = RelativeLayout.VISIBLE
+        binding.boundLeft.setOnTouchListener(onBoundTouchListener)
+        binding.boundRight.setOnTouchListener(onBoundTouchListener)
+        binding.barHolder.setOnTouchListener(onBarTouchListener)
+    }
+
+    private fun disableSeekBar() {
+        binding.boundLeft.setImageResource(R.drawable.ic_baseline_circle_30_gray)
+        binding.boundRight.setImageResource(R.drawable.ic_baseline_circle_30_gray)
+        binding.bar.setBackgroundColor(ContextCompat.getColor(this, R.color.gray3))
+        binding.current.visibility = RelativeLayout.GONE
+        binding.boundLeft.setOnTouchListener(null)
+        binding.boundRight.setOnTouchListener(null)
+        binding.barHolder.setOnTouchListener(null)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

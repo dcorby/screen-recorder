@@ -98,7 +98,7 @@
                     android:layout_marginTop="19dp"
                     android:layout_marginLeft="15dp"
                     android:layout_marginRight="15dp"
-                    android:background="@color/red">
+                    android:background="@color/gray3">
                 </RelativeLayout>
                 <ImageView
                     android:id="@+id/bound_left"
@@ -106,7 +106,7 @@
                     android:layout_height="30dp"
                     android:layout_width="30dp"
                     android:layout_marginTop="5dp"
-                    android:src="@drawable/ic_baseline_circle_30">
+                    android:src="@drawable/ic_baseline_circle_30_gray">
                 </ImageView>
                 <ImageView
                     android:id="@+id/bound_right"
@@ -114,10 +114,11 @@
                     android:layout_height="30dp"
                     android:layout_width="30dp"
                     android:layout_marginTop="5dp"
-                    android:src="@drawable/ic_baseline_circle_30">
+                    android:src="@drawable/ic_baseline_circle_30_gray">
                 </ImageView>
                 <RelativeLayout
                     android:id="@+id/current"
+                    android:visibility="gone"
                     android:layout_width="2dp"
                     android:layout_height="match_parent"
                     android:layout_marginLeft="14dp"
