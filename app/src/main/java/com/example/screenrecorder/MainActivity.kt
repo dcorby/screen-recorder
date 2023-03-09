@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.graphics.*
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -943,13 +944,18 @@ class MainActivity : Activity() {
                         -999,
                         PixelFormat.TRANSLUCENT
                     )
+                    params.screenOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
                     windowManager.addView(panel, params)
                 }
+                windowParams.screenOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                windowManager.updateViewLayout(overlay, windowParams)
                 startRecording()
             }
             if (imageView.tag.toString() == "recording") {
                 recording?.visibility = LinearLayout.GONE
                 record?.visibility = LinearLayout.VISIBLE
+                windowParams.screenOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                windowManager.updateViewLayout(overlay, windowParams)
                 stopRecording(true)
             }
         }
