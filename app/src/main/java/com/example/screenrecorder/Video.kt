@@ -4,6 +4,7 @@ import java.io.File
 
 class Video(file: File) {
     val file = file
-    var filename = file.name
-    var label = file.name.replace(".mp4", "")
+    val filename: String = file.name
+    val label = file.name.replace(".mp4", "")
+    var editMode = false
 }

@@ -101,9 +101,10 @@ class BrowserActivity: AppCompatActivity() {
         baseDir = this.filesDir.toString()
         viewModel = ViewModelProvider(this).get(BrowserActivityViewModel::class.java)
         videosAdapter = VideosAdapter(
+                            videos,
                             { video, view -> adapterOnClick(video, view) },
                             { video, button, callback -> adapterOnRename(video, button, callback) },
-                            { video, button -> adapterOnDelete(video, button) })
+                            { video, button, callback -> adapterOnDelete(video, button, callback) })
         val recyclerView: RecyclerView = binding.recyclerView
         recyclerView.adapter = videosAdapter
         updateVideos()
@@ -143,7 +144,9 @@ class BrowserActivity: AppCompatActivity() {
                             binding.nameLayout.visibility = RelativeLayout.GONE
                             binding.nameButton.setOnClickListener(null)
                             updateVideos()
-                            videosAdapter.notifyDataSetChanged()
+                            //videosAdapter.notifyDataSetChanged()
+                            // https://stackoverflow.com/questions/31759171/recyclerview-and-java-lang-indexoutofboundsexception-inconsistency-detected-in
+                            videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
                         }
                     }
                 }
@@ -177,17 +180,20 @@ class BrowserActivity: AppCompatActivity() {
             video.file.renameTo(newFile)
             layout.visibility = LinearLayout.GONE
             updateVideos()
-            videosAdapter.notifyDataSetChanged()
+            //videosAdapter.notifyDataSetChanged()
+            // https://stackoverflow.com/questions/31759171/recyclerview-and-java-lang-indexoutofboundsexception-inconsistency-detected-in
+            videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
             callback()
         }
     }
 
-    private fun adapterOnDelete(video: Video, button: Button) {
+    private fun adapterOnDelete(video: Video, button: Button, callback: (() -> Unit)) {
         video.file.delete()
         updateVideos()
-        videosAdapter.notifyDataSetChanged()
+        // https://stackoverflow.com/questions/31759171/recyclerview-and-java-lang-indexoutofboundsexception-inconsistency-detected-in
+        videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
         Toast.makeText(this, "Video ${video.filename} deleted", Toast.LENGTH_SHORT).show()
-        button.visibility = RelativeLayout.GONE    // Recycler View re-uses these
+        callback()
     }
 
     private fun updateVideos() {
