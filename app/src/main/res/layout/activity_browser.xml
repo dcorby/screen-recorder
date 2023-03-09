@@ -42,9 +42,56 @@
         app:layout_constraintBottom_toTopOf="@+id/studio"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent">
-        <RelativeLayout
+        <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/graybeige"
+                android:gravity="center_vertical|left">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/gray4"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginRight="10dp"
+                    android:textSize="14dp"
+                    android:text="Sort By">
+                </TextView>
+                <androidx.appcompat.widget.AppCompatButton
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="0dp"
+                    android:padding="6dp"
+                    android:layout_marginRight="10dp"
+                    android:layout_marginTop="7dp"
+                    android:layout_marginBottom="7dp"
+                    android:textColor="@color/graybeige3"
+                    android:textAllCaps="false"
+                    android:background="@drawable/rounded_button_borders"
+                    android:backgroundTint="@color/graybeige1"
+                    android:textSize="12sp"
+                    android:text="Name">
+                </androidx.appcompat.widget.AppCompatButton>
+                <androidx.appcompat.widget.AppCompatButton
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="0dp"
+                    android:padding="6dp"
+                    android:layout_marginTop="7dp"
+                    android:layout_marginBottom="7dp"
+                    android:textColor="@color/graybeige3"
+                    android:textAllCaps="false"
+                    android:background="@drawable/rounded_button_borders"
+                    android:backgroundTint="@color/graybeige1"
+                    android:textSize="12sp"
+                    android:text="Date">
+                </androidx.appcompat.widget.AppCompatButton>
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_view"
                 app:layoutManager="LinearLayoutManager"
@@ -52,7 +99,7 @@
                 android:layout_height="wrap_content"
                 android:background="@drawable/border_black_bottom">
             </androidx.recyclerview.widget.RecyclerView>
-        </RelativeLayout>
+        </androidx.appcompat.widget.LinearLayoutCompat>
         <VideoView
             android:id="@+id/video_view"
             android:layout_width="match_parent"

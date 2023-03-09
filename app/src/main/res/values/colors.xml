@@ -20,7 +20,12 @@
     <color name="gray2">#f1f0f0</color>
     <color name="gray3">#cccccc</color>
     <color name="gray4">#333333</color>
+    <color name="gray5">#666666</color>
+    <color name="gray6">#999999</color>
     <color name="blue">#7EC8E3</color>
     <color name="blue2">#0000ff</color>
+    <color name="graybeige1">#f5f2f0</color>
     <color name="graybeige">#f0ece8</color>
+    <color name="graybeige2">#e1d9d1</color>
+    <color name="graybeige3">#c3b3a2</color>
 </resources>

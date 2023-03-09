@@ -72,6 +72,7 @@ class BrowserActivity: AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var viewModel: BrowserActivityViewModel
     private var baseDir = ""
+    private var sortByDate = false
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,6 +81,8 @@ class BrowserActivity: AppCompatActivity() {
         binding = ActivityBrowserBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
+
+        sortByDate = intent.getBooleanExtra("wasRecording", false)
 
         ImageView(this).let { image ->
             val params = RelativeLayout.LayoutParams(60, 60)
@@ -694,7 +697,7 @@ class MainActivity : Activity() {
                         image.layoutParams = params
                         image.setImageResource(R.drawable.ic_baseline_open_in_full_100)
                         image.setOnClickListener {
-                            launchBrowser()
+                            launchBrowser(false)
                         }
                         left.addView(image)
                     }
@@ -908,10 +911,10 @@ class MainActivity : Activity() {
             return px
         }
 
-        private fun launchBrowser() {
-            // Start the BrowserActivity
+        private fun launchBrowser(wasRecording: Boolean) {
             val intent = Intent(this, BrowserActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            intent.putExtra("wasRecording", wasRecording)
             startActivity(intent)
             exit()
         }
@@ -1012,7 +1015,7 @@ class MainActivity : Activity() {
                 mediaRecorder.reset()
                 isRecording = false
                 if (launchBrowser) {
-                    launchBrowser()
+                    launchBrowser(true)
                 }
             }
         }
