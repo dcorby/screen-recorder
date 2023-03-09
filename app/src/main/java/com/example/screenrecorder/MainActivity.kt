@@ -21,13 +21,13 @@ import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
 import android.view.*
-import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.core.view.marginBottom
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -45,7 +45,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-
 
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
 const val OVERLAY_PERMISSION_CODE = 2
@@ -101,7 +100,6 @@ class BrowserActivity: AppCompatActivity() {
 
         baseDir = this.filesDir.toString()
         viewModel = ViewModelProvider(this).get(BrowserActivityViewModel::class.java)
-
         videosAdapter = VideosAdapter(
                             { video, view -> adapterOnClick(video, view) },
                             { video, button, callback -> adapterOnRename(video, button, callback) },
@@ -153,7 +151,6 @@ class BrowserActivity: AppCompatActivity() {
                 Toast.makeText(this, "Select bounds", Toast.LENGTH_SHORT).show()
             }
         }
-
 
         // Display metrics are needed for framesHolder
         displayMetrics = DisplayMetrics()
@@ -212,7 +209,7 @@ class BrowserActivity: AppCompatActivity() {
                 binding.play.visibility = RelativeLayout.GONE
                 binding.pause.visibility = RelativeLayout.VISIBLE
                 binding.videoView.start()
-                startTimer()
+                startTimerPlayer()
             } else {
                 binding.videoView.visibility = RelativeLayout.VISIBLE
                 binding.recyclerView.visibility = RelativeLayout.GONE
@@ -222,7 +219,7 @@ class BrowserActivity: AppCompatActivity() {
                 binding.videoView.setOnPreparedListener {
                     mediaPlayer = it
                     binding.timeFrom.text = "00:00:00"
-                    binding.timeTo.text = getTime(mediaPlayer!!.duration)
+                    binding.timeTo.text = Utils.getTime(mediaPlayer!!.duration)
                     mediaPlayer!!.setOnCompletionListener {
                         stop(false)
                         /* stop() is pretty blunt here, but encountering a strange issue
@@ -289,7 +286,7 @@ class BrowserActivity: AppCompatActivity() {
             }
             mediaPlayer!!.seekTo(to.toLong(), MediaPlayer.SEEK_CLOSEST)
             updateCurrent()
-            binding.status.text = getTime(mediaPlayer!!.currentPosition)
+            binding.status.text = Utils.getTime(mediaPlayer!!.currentPosition)
         }
     }
 
@@ -339,8 +336,8 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    private fun startTimer() {
-        binding.status.text = getTime(mediaPlayer!!.currentPosition)
+    private fun startTimerPlayer() {
+        binding.status.text = Utils.getTime(mediaPlayer!!.currentPosition)
         handler.postDelayed(object : Runnable {
             @RequiresApi(Build.VERSION_CODES.O)
             override fun run() {
@@ -348,14 +345,7 @@ class BrowserActivity: AppCompatActivity() {
                 updateCurrent()
             }
         }, 100)
-        binding.duration.text = getTime(mediaPlayer!!.duration)
-    }
-
-    private fun getTime(ms: Int): String {
-        val h = ms / (1000 * 60 * 60) % 24
-        val m = ms / (1000 * 60) % 60
-        val s = (ms / 1000) % 60
-        return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
+        binding.duration.text = Utils.getTime(mediaPlayer!!.duration)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -366,25 +356,24 @@ class BrowserActivity: AppCompatActivity() {
         val params = binding.current.layoutParams as FrameLayout.LayoutParams
         params.leftMargin = offset.toInt() + dpToPx(15f).toInt()
         binding.current.layoutParams = params
-        binding.status.text = getTime(mediaPlayer!!.currentPosition)
-
+        binding.status.text = Utils.getTime(mediaPlayer!!.currentPosition)
         updateBounds()
     }
 
     private fun updateBounds() {
         // Update bound times
         if ((binding.boundLeft.layoutParams as FrameLayout.LayoutParams).leftMargin > 0) {
-            binding.timeFrom.text = getTime(getBoundPosition(binding.boundLeft))
+            binding.timeFrom.text = Utils.getTime(getBoundPosition(binding.boundLeft))
             binding.timeFrom.setTextColor(Color.parseColor("#9e1a1a"))
         } else {
             binding.timeFrom.text = "00:00:00"
             binding.timeFrom.setTextColor(Color.parseColor("#ffffff"))
         }
         if ((binding.boundRight.layoutParams as FrameLayout.LayoutParams).leftMargin < binding.bar.width) {
-            binding.timeTo.text = getTime(getBoundPosition(binding.boundRight))
+            binding.timeTo.text = Utils.getTime(getBoundPosition(binding.boundRight))
             binding.timeTo.setTextColor(Color.parseColor("#9e1a1a"))
         } else {
-            binding.timeTo.text = getTime(mediaPlayer!!.duration)
+            binding.timeTo.text = Utils.getTime(mediaPlayer!!.duration)
             binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
         }
     }
@@ -632,7 +621,6 @@ class MainActivity : Activity() {
     }
 
     class Overlay : Service() {
-
         // Properties related to WindowManager and the UI
         private lateinit var overlay: FrameLayout
         private lateinit var form: LinearLayout
@@ -646,6 +634,9 @@ class MainActivity : Activity() {
         private lateinit var virtualDisplay: VirtualDisplay
         private lateinit var mediaProjectionCallback: MediaProjectionCallback
         private lateinit var windowParams: WindowManager.LayoutParams
+        private lateinit var timeView: TextView
+        private lateinit var toastView: TextView
+        private val handler = Handler(Looper.getMainLooper())
         private var mediaRecorder = MediaRecorder()
         private var screenWidth = -1
         private var screenHeight = -1
@@ -660,10 +651,8 @@ class MainActivity : Activity() {
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
             // https://stackoverflow.com/questions/6446221/get-context-in-a-service
             overlay = FrameLayout(this)
-
-            overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.black))
-            //overlay.alpha = 0.50f
-            overlay.setBackgroundColor(Color.parseColor("#80000000"))
+            //overlay.setBackgroundColor(ContextCompat.getColor(this, R.color.black))
+            //overlay.setBackgroundColor(Color.parseColor("#80000000"))
             windowParams = WindowManager.LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 100,
@@ -679,14 +668,13 @@ class MainActivity : Activity() {
                 val params = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
                 layout.orientation = LinearLayout.HORIZONTAL
                 layout.layoutParams = params
-                layout.setBackgroundColor(Color.parseColor("#00FFFFFF"))
+                layout.setBackgroundColor(Color.parseColor("#80000000"))
                 overlay?.addView(layout)
 
                 // Create the left panel ("open full" and "go to current" icons)
                 LinearLayout(this).let { left ->
                     val params = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f)
                     left.layoutParams = params
-                    //left.setBackgroundColor(ContextCompat.getColor(this, R.color.pastel_blue))
                     left.setBackgroundColor(Color.parseColor("#00FFFFFF"))
                     layout.addView(left)
 
@@ -698,24 +686,11 @@ class MainActivity : Activity() {
                         params.topMargin = 20
                         image.layoutParams = params
                         image.setImageResource(R.drawable.ic_baseline_open_in_full_100)
-                        //image.setBackgroundColor(Color.parseColor("#80FFFFFF"))
                         image.setOnClickListener {
                             launchBrowser()
                         }
                         left.addView(image)
                     }
-
-                    //val imageCurrent
-                    /*
-                    ImageView(this).let { image ->
-                        val params = RelativeLayout.LayoutParams(80, 80)
-                        params.leftMargin = 50
-                        params.topMargin = 10
-                        image.background = ContextCompat.getDrawable(this, R.drawable.rounded_white)
-                        image.layoutParams = params
-                        left.addView(image)
-                    }
-                    */
                 }
 
                 // Create the center panel (record button)
@@ -724,7 +699,6 @@ class MainActivity : Activity() {
                     center.layoutParams = params
                     center.orientation = LinearLayout.HORIZONTAL
                     center.gravity = Gravity.CENTER
-                    //center.setBackgroundColor(ContextCompat.getColor(this, R.color.pastel_green))
                     center.setBackgroundColor(Color.parseColor("#00FFFFFF"))
                     layout.addView(center)
 
@@ -733,19 +707,19 @@ class MainActivity : Activity() {
                         val params = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1.0f)
                         l.layoutParams = params
                         l.gravity = Gravity.RIGHT
-                        //l.setBackgroundColor(ContextCompat.getColor(this, R.color.pastel_blue))
                         TextView(this).let { textView ->
-                            textView.text = "00:00:00"
-                            textView.setTextColor(Color.parseColor("#eeeeee"))
-                            textView.textSize = 18f
+                            timeView = textView
+                            timeView.text = "00:00:00"
+                            timeView.setTextColor(Color.parseColor("#eeeeee"))
+                            timeView.textSize = 18f
                             val params = LinearLayout.LayoutParams(
                                 LayoutParams.WRAP_CONTENT,
                                 LayoutParams.MATCH_PARENT
                             )
                             params.rightMargin = 10
-                            textView.gravity = Gravity.CENTER_VERTICAL
-                            textView.layoutParams = params
-                            l.addView(textView)
+                            timeView.gravity = Gravity.CENTER_VERTICAL
+                            timeView.layoutParams = params
+                            l.addView(timeView)
                         }
                         center.addView(l)
                     }
@@ -796,6 +770,15 @@ class MainActivity : Activity() {
                                 hide.addView(checkBox)
                                 checkBox.setOnCheckedChangeListener { buttonView, isChecked ->
                                     hideLayout = isChecked
+                                    if (isChecked) {
+                                        toastView.visibility = TextView.VISIBLE
+                                        toastView.alpha = 0.80f
+                                        handler.postDelayed({
+                                            toastView.animate().alpha(0.0f).setDuration(700).withEndAction {
+                                                toastView.visibility = TextView.GONE
+                                            }
+                                        }, 1500)
+                                    }
                                 }
                             }
                             TextView(this).let { textView ->
@@ -835,7 +818,7 @@ class MainActivity : Activity() {
             }
             // end layout
 
-            // begin frame
+            // begin form (not in use)
             LinearLayout(this).let {
                 form = it
                 form.visibility = LinearLayout.GONE
@@ -885,6 +868,28 @@ class MainActivity : Activity() {
                 }
                 //overlay.addView(form)
             }
+            // end form
+
+            // begin hide notice
+            TextView(this, null,
+                    LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).let { textView ->
+
+                toastView = textView
+                toastView.visibility = TextView.GONE
+                overlay.addView(toastView)
+                val params = toastView.layoutParams as FrameLayout.LayoutParams
+                params.gravity = Gravity.CENTER
+                params.width = LayoutParams.WRAP_CONTENT
+                params.height = LayoutParams.WRAP_CONTENT
+                toastView.text = "When the recording starts, double tap anywhere to finish"
+                toastView.setBackgroundColor(resources.getColor(R.color.black))
+                toastView.setTextColor(resources.getColor(R.color.white))
+                toastView.setPadding(10, 10, 10, 10)
+                toastView.alpha = 0.80f
+                toastView.gravity = Gravity.CENTER
+                toastView.layoutParams = params
+            }
+            // end hide notice
         }
 
         private fun dpToPx(dp: Float) : Float {
@@ -971,6 +976,19 @@ class MainActivity : Activity() {
             mediaRecorder.setPreviewDisplay(mediaRecorder.surface)
             mediaRecorder.start()
             isRecording = true
+            startTimerRecording()
+        }
+
+        private fun startTimerRecording() {
+            var time = 0
+            handler.postDelayed(object : Runnable {
+                @RequiresApi(Build.VERSION_CODES.O)
+                override fun run() {
+                    time += 100
+                    timeView.text = Utils.getTime(time)
+                    handler.postDelayed(this, 100)
+                }
+            }, 100)
         }
 
         private fun stopRecording(launchBrowser: Boolean) {
@@ -1035,6 +1053,17 @@ class MainActivity : Activity() {
         override fun onDestroy() {
             super.onDestroy()
             cleanUp()
+        }
+    }
+}
+
+class Utils {
+    companion object {
+        fun getTime(ms: Int): String {
+            val h = ms / (1000 * 60 * 60) % 24
+            val m = ms / (1000 * 60) % 60
+            val s = (ms / 1000) % 60
+            return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
         }
     }
 }
