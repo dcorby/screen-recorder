@@ -884,7 +884,7 @@ class MainActivity : Activity() {
                 toastView.text = "When the recording starts, double tap anywhere to finish"
                 toastView.setBackgroundColor(resources.getColor(R.color.black))
                 toastView.setTextColor(resources.getColor(R.color.white))
-                toastView.setPadding(10, 10, 10, 10)
+                toastView.setPadding(12, 12, 12, 12)
                 toastView.alpha = 0.80f
                 toastView.gravity = Gravity.CENTER
                 toastView.layoutParams = params
