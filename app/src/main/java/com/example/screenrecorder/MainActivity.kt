@@ -60,6 +60,7 @@ class MediaProjectionCompanion {
 
 class BrowserActivityViewModel : ViewModel() {
     var job: Job = Job()
+    var sortBy: String = "name"
 }
 class BrowserActivity: AppCompatActivity() {
 
@@ -73,7 +74,6 @@ class BrowserActivity: AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var viewModel: BrowserActivityViewModel
     private var baseDir = ""
-    private var sortByDate = false
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,6 +83,7 @@ class BrowserActivity: AppCompatActivity() {
         binding = ActivityBrowserBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
+        supportActionBar?.title = "Screen Recorder"
 
         // Layout the toolbar
         ImageView(this).let { image ->
@@ -105,8 +106,8 @@ class BrowserActivity: AppCompatActivity() {
 
         // Get some instance vars, including the view model
         baseDir = this.filesDir.toString()
-        sortByDate = intent.getBooleanExtra("wasRecording", false)
         viewModel = ViewModelProvider(this).get(BrowserActivityViewModel::class.java)
+        viewModel.sortBy = intent.getStringExtra("sortBy") ?: "name"
 
         // Set the adapter
         videosAdapter = VideosAdapter(
@@ -118,7 +119,7 @@ class BrowserActivity: AppCompatActivity() {
         recyclerView.adapter = videosAdapter
         updateVideos()
         videosAdapter.submitList(videos)
-        toggleSort(if (sortByDate) "date" else "name")
+        toggleSort(viewModel.sortBy)
         binding.sortByName.setOnClickListener { toggleSort("name") }
         binding.sortByDate.setOnClickListener { toggleSort("date") }
 
@@ -157,7 +158,6 @@ class BrowserActivity: AppCompatActivity() {
                             binding.nameLayout.visibility = RelativeLayout.GONE
                             binding.nameButton.setOnClickListener(null)
                             updateVideos()
-                            //videosAdapter.notifyDataSetChanged()
                             // https://stackoverflow.com/questions/31759171/recyclerview-and-java-lang-indexoutofboundsexception-inconsistency-detected-in
                             videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
                         }
@@ -186,6 +186,8 @@ class BrowserActivity: AppCompatActivity() {
             binding.sortByName.setTextColor(ContextCompat.getColor(this, R.color.graybeige3))
             binding.sortByName.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders)
         }
+        updateVideos()
+        videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
     }
 
     private fun adapterOnClick(video: Video, view: View) {
@@ -208,7 +210,6 @@ class BrowserActivity: AppCompatActivity() {
             video.file.renameTo(newFile)
             layout.visibility = LinearLayout.GONE
             updateVideos()
-            //videosAdapter.notifyDataSetChanged()
             // https://stackoverflow.com/questions/31759171/recyclerview-and-java-lang-indexoutofboundsexception-inconsistency-detected-in
             videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
             callback()
@@ -231,6 +232,11 @@ class BrowserActivity: AppCompatActivity() {
                 val video = Video(file)
                 videos.add(video)
             }
+        }
+        if (viewModel.sortBy == "name") {
+            videos.sortBy { it.filename }
+        } else {
+            videos.sortBy { it.file.lastModified() }
         }
     }
 
@@ -938,7 +944,7 @@ class MainActivity : Activity() {
         private fun launchBrowser(wasRecording: Boolean) {
             val intent = Intent(this, BrowserActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            intent.putExtra("wasRecording", wasRecording)
+            intent.putExtra("sortBy", if (wasRecording) "date" else "name")
             startActivity(intent)
             exit()
         }
