@@ -28,4 +28,6 @@
     <color name="graybeige">#f0ece8</color>
     <color name="graybeige2">#e1d9d1</color>
     <color name="graybeige3">#c3b3a2</color>
+
+    <color name="transparent">#00ffffff</color>
 </resources>

@@ -6,6 +6,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.res.ColorStateList
 import android.graphics.*
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -78,12 +79,12 @@ class BrowserActivity: AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Layout actions
         binding = ActivityBrowserBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
 
-        sortByDate = intent.getBooleanExtra("wasRecording", false)
-
+        // Layout the toolbar
         ImageView(this).let { image ->
             val params = RelativeLayout.LayoutParams(60, 60)
             binding.toolbarLayout.gravity = Gravity.CENTER_VERTICAL
@@ -102,8 +103,12 @@ class BrowserActivity: AppCompatActivity() {
             }
         }
 
+        // Get some instance vars, including the view model
         baseDir = this.filesDir.toString()
+        sortByDate = intent.getBooleanExtra("wasRecording", false)
         viewModel = ViewModelProvider(this).get(BrowserActivityViewModel::class.java)
+
+        // Set the adapter
         videosAdapter = VideosAdapter(
                             videos,
                             { video, view -> adapterOnClick(video, view) },
@@ -113,23 +118,27 @@ class BrowserActivity: AppCompatActivity() {
         recyclerView.adapter = videosAdapter
         updateVideos()
         videosAdapter.submitList(videos)
+        toggleSort(if (sortByDate) "date" else "name")
+        binding.sortByName.setOnClickListener { toggleSort("name") }
+        binding.sortByDate.setOnClickListener { toggleSort("date") }
 
+        // Set controls listeners
         binding.play.setOnClickListener { play() }
         binding.pause.setOnClickListener { pause() }
         binding.stop.setOnClickListener { stop(true) }
         binding.back10.setOnClickListener { seekDiff(-10) }
         binding.forward10.setOnClickListener { seekDiff(10) }
-
         binding.bar.post {
             val width = binding.bar.width
             val params = binding.boundRight.layoutParams as FrameLayout.LayoutParams
             params.leftMargin = width
             binding.boundRight.layoutParams = params
         }
-
         binding.nameClose.setOnClickListener {
             binding.nameLayout.visibility = RelativeLayout.GONE
         }
+
+        // Handle cut
         binding.cut.setOnClickListener {
             val cutFrom = binding.timeFrom.currentTextColor == ContextCompat.getColor(this, R.color.red)
             val cutTo = binding.timeTo.currentTextColor == ContextCompat.getColor(this, R.color.red)
@@ -162,6 +171,21 @@ class BrowserActivity: AppCompatActivity() {
         // Display metrics are needed for framesHolder
         displayMetrics = DisplayMetrics()
         windowManager.getDefaultDisplay().getMetrics(displayMetrics)
+    }
+
+    private fun toggleSort(by: String) {
+        if (by == "name") {
+            binding.sortByDate.setTextColor(ContextCompat.getColor(this, R.color.graybeige3))
+            binding.sortByDate.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders)
+            binding.sortByName.setTextColor(ContextCompat.getColor(this, R.color.red))
+            binding.sortByName.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders_active)
+        }
+        if (by == "date") {
+            binding.sortByDate.setTextColor(ContextCompat.getColor(this, R.color.red))
+            binding.sortByDate.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders_active)
+            binding.sortByName.setTextColor(ContextCompat.getColor(this, R.color.graybeige3))
+            binding.sortByName.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders)
+        }
     }
 
     private fun adapterOnClick(video: Video, view: View) {

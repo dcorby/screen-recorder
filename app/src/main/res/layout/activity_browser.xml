@@ -61,37 +61,41 @@
                     android:text="Sort By">
                 </TextView>
                 <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/sort_by_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:minHeight="0dp"
-                    android:padding="6dp"
+                    android:paddingLeft="6dp"
+                    android:paddingRight="6dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
                     android:layout_marginRight="10dp"
                     android:layout_marginTop="7dp"
                     android:layout_marginBottom="7dp"
                     android:textColor="@color/graybeige3"
                     android:textAllCaps="false"
-                    android:background="@drawable/rounded_button_borders"
-                    android:backgroundTint="@color/graybeige1"
+                    android:background="@drawable/rounded_button_borders_active"
                     android:textSize="12sp"
                     android:text="Name">
                 </androidx.appcompat.widget.AppCompatButton>
                 <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/sort_by_date"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:minHeight="0dp"
-                    android:padding="6dp"
+                    android:paddingLeft="6dp"
+                    android:paddingRight="6dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
                     android:layout_marginTop="7dp"
                     android:layout_marginBottom="7dp"
                     android:textColor="@color/graybeige3"
                     android:textAllCaps="false"
                     android:background="@drawable/rounded_button_borders"
-                    android:backgroundTint="@color/graybeige1"
                     android:textSize="12sp"
                     android:text="Date">
                 </androidx.appcompat.widget.AppCompatButton>
             </androidx.appcompat.widget.LinearLayoutCompat>
-
-
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_view"
                 app:layoutManager="LinearLayoutManager"
