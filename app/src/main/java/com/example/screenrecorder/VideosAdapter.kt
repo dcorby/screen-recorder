@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.core.content.ContextCompat
+import androidx.core.widget.addTextChangedListener
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -17,14 +18,19 @@ class VideosAdapter(private val videos: MutableList<Video>,
                     private val onDelete: (Video, (() -> Unit)) -> Unit) :
     ListAdapter<Video, VideosAdapter.VideoItemViewHolder>(VideoItemDiffCallback) {
 
-    var currentLayout: View? = null
-    var currentVideo: Video? = null
+    var recyclerView: RecyclerView? = null
 
-    // Can only edit one video at once, keep a reference to it and its layout
+    // 3 states to keep track of
+    var currentVideo: Video? = null
+    var currentLayout: LinearLayout? = null
+
     var editVideo: Video? = null
     var editLayout: LinearLayout? = null
 
-    var getDefaultBackground = { context: Context -> ContextCompat.getDrawable(context, R.drawable.border_black_top)}
+    var renameVideo: Video? = null
+    var renameLayout: LinearLayout? = null
+
+    var getDefaultBackground = { context: Context -> ContextCompat.getDrawable(context, R.drawable.border_black_top) }
     var getSelectedBackground = { context: Context -> ContextCompat.getDrawable(context, R.drawable.border_gray_top) }
 
     inner class VideoItemViewHolder(
@@ -45,66 +51,85 @@ class VideosAdapter(private val videos: MutableList<Video>,
         fun bind(video: Video) {
             textView.text = video.label
 
-            // Show editMode
-            if (video.editMode) {
-                delete.visibility = RelativeLayout.VISIBLE
-                rename.visibility = RelativeLayout.VISIBLE
+            // Set current
+            if (video.stateCurrent) {
+                layout.background = getSelectedBackground(itemView.context)
+                currentVideo = video
+                currentLayout = layout
+            }
+
+            // Set editing
+            if (video.stateEditing) {
+                delete.visibility = Button.VISIBLE
+                rename.visibility = Button.VISIBLE
+                edit.visibility = ImageView.GONE
+                editVideo = video
+                editLayout = layout
             } else {
-                delete.visibility = RelativeLayout.GONE
-                rename.visibility = RelativeLayout.GONE
+                delete.visibility = Button.GONE
+                rename.visibility = Button.GONE
+                edit.visibility = ImageView.VISIBLE
             }
 
             // Show New!
             isNew.visibility = if (video.isNew) TextView.VISIBLE else TextView.GONE
 
-            // Handle rename
-            rename.setOnClickListener {
+            fun enterRename() {
                 delete.visibility = RelativeLayout.GONE
                 rename.visibility = RelativeLayout.GONE
+                renameVideo = editVideo
+                editVideo?.stateRenaming = true
+                renameVideo?.stateRenaming = true
+                renameLayout = (rename.parent.parent.parent as View).findViewById(R.id.item_rename)
+                renameLayout!!.visibility = LinearLayout.VISIBLE
 
-                val form = (rename.parent.parent.parent as View).findViewById<LinearLayout>(R.id.item_rename)
-                form.visibility = LinearLayout.VISIBLE
-                val editText = form.findViewById<EditText>(R.id.name)
-                val button = form.findViewById<Button>(R.id.do_rename)
-                val close = form.findViewById<ImageView>(R.id.close)
+                val editText = renameLayout!!.findViewById<EditText>(R.id.name)
+                editText.setText(renameVideo?.renameTo)
+                val button = renameLayout!!.findViewById<Button>(R.id.do_rename)
+                val close = renameLayout!!.findViewById<ImageView>(R.id.close)
+                editText.addTextChangedListener { editable ->
+                    renameVideo?.renameTo = editable.toString()
+                }
                 button.setOnClickListener inner@{
                     val name = editText.text.toString().replace(".mp4", "").trim()
                     if (name == "") {
                         onRename(null)
                         return@inner
                     }
-                    val newFile = File(video.file.parent, "${name}.mp4")
-                    video.file.renameTo(newFile)
-                    video.editMode = false
-                    form.visibility = LinearLayout.GONE
-                    edit.visibility = ImageView.VISIBLE
-                    onRename(editVideo)
+                    val newFile = File(renameVideo?.file?.parent, "${name}.mp4")
+                    renameVideo?.file?.renameTo(newFile)
+                    exitRename()
+                    onRename(renameVideo)
                 }
                 close.setOnClickListener {
-                    video.editMode = false
-                    form.visibility = LinearLayout.GONE
-                    edit.visibility = ImageView.VISIBLE
+                    exitRename()
                 }
+            }
+            rename.setOnClickListener {
+                enterRename()
+            }
+            if (video.stateRenaming) {
+                enterRename()
             }
 
             // Handle delete
             delete.setOnClickListener {
-                video.file.delete()
-                onDelete(video) {
+                editVideo?.file?.delete()
+                onDelete(editVideo!!) {
                     delete.visibility = RelativeLayout.GONE
                     rename.visibility = RelativeLayout.GONE
-                    video.editMode = false
+                    video.stateEditing = false
                 }
             }
 
             // Item select
             itemView.setOnClickListener {
                 currentLayout?.background = getDefaultBackground(itemView.context)
-                currentVideo?.selected = false
+                currentVideo?.stateCurrent = false
 
                 // Select current
                 layout.background = getSelectedBackground(itemView.context)
-                video.selected = true
+                video.stateCurrent = true
 
                 // Activity callback
                 onClick(video)
@@ -114,6 +139,7 @@ class VideosAdapter(private val videos: MutableList<Video>,
                 currentVideo = video
 
                 deactivateEdit()
+                renameLayout?.visibility = LinearLayout.GONE
             }
 
             // Edit mode
@@ -123,26 +149,44 @@ class VideosAdapter(private val videos: MutableList<Video>,
                 edit.visibility = ImageView.GONE
                 delete.visibility = Button.VISIBLE
                 rename.visibility = Button.VISIBLE
-                video.editMode = true
+                video.stateEditing = true
 
                 editVideo = video
                 editLayout = layout
             }
         }
 
+        // Handle rename
+        private fun exitRename() {
+            renameLayout?.visibility = LinearLayout.GONE
+            editVideo?.stateEditing = false
+            editVideo?.stateRenaming = false
+            renameVideo?.stateEditing = false
+            renameVideo?.stateRenaming = false
+            renameVideo?.renameTo = ""
+            editVideo = null
+            editLayout = null
+            renameVideo = null
+            renameLayout = null
+            edit.visibility = ImageView.VISIBLE
+        }
+
         // Deactivate current editVideo
         private fun deactivateEdit() {
-            if (editVideo != null) {
+            if (editVideo != null && editLayout != null) {
                 val edit: ImageView = editLayout!!.findViewById(R.id.edit)
                 val rename: Button = editLayout!!.findViewById(R.id.rename)
                 val delete: Button = editLayout!!.findViewById(R.id.delete)
                 edit.visibility = ImageView.VISIBLE
                 delete.visibility = Button.GONE
                 rename.visibility = Button.GONE
-                editVideo!!.editMode = false
+                editVideo!!.stateEditing = false
 
                 editVideo = null
                 editLayout = null
+            }
+            if (renameVideo != null && renameLayout != null) {
+                exitRename()
             }
         }
     }
@@ -159,6 +203,11 @@ class VideosAdapter(private val videos: MutableList<Video>,
 
     override fun getItemCount(): Int {
         return videos.size
+    }
+
+    override fun onAttachedToRecyclerView(_recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(_recyclerView)
+        recyclerView = _recyclerView
     }
 }
 
