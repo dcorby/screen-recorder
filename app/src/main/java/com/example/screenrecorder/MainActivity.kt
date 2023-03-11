@@ -29,6 +29,8 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -64,12 +66,12 @@ class BrowserActivityViewModel : ViewModel() {
     var sortBy: String? = null
     var videos = mutableListOf<Video>()
     var videoNew: Video? = null
+    var videoCurrent: Video? = null
 }
 class BrowserActivity: AppCompatActivity() {
 
     private lateinit var binding: ActivityBrowserBinding
     private lateinit var videosAdapter: VideosAdapter
-    private var currentVideo: Video? = null
     private lateinit var displayMetrics: DisplayMetrics
     private var mediaPlayer: MediaPlayer? = null
     private var retriever = MediaMetadataRetriever()
@@ -208,7 +210,7 @@ class BrowserActivity: AppCompatActivity() {
     }
 
     private fun adapterOnClick(video: Video) {
-        currentVideo = video
+        viewModel.videoCurrent = video
         retriever.setDataSource(applicationContext, video.file.toUri())
     }
 
@@ -248,25 +250,23 @@ class BrowserActivity: AppCompatActivity() {
                 viewModel.wasRecording = false
             }
         }
-        //videosAdapter.notifyItemRangeRemoved(0, viewModel.videos.size + 1)
-        videosAdapter.notifyDataSetChanged()
+        videosAdapter.notifyItemRangeRemoved(0, viewModel.videos.size + 1)
     }
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     private fun play() {
-        if (currentVideo == null) {
+        if (viewModel.videoCurrent == null) {
             Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
         } else {
             if (mediaPlayer != null) {
-                binding.play.visibility = RelativeLayout.GONE
-                binding.pause.visibility = RelativeLayout.VISIBLE
+                binding.play.visibility = View.GONE
+                binding.pause.visibility = View.VISIBLE
                 binding.videoView.start()
                 startTimerPlayer()
             } else {
-                binding.videoView.visibility = RelativeLayout.VISIBLE
-                binding.recyclerView.visibility = RelativeLayout.GONE
+                toggleUiForVideo("show")
                 binding.videoView.setMediaController(MediaController(this))
-                binding.videoView.setVideoURI(currentVideo!!.file.toUri())
+                binding.videoView.setVideoURI(viewModel.videoCurrent!!.file.toUri())
                 binding.videoView.requestFocus()
                 binding.videoView.setOnPreparedListener {
                     mediaPlayer = it
@@ -282,6 +282,21 @@ class BrowserActivity: AppCompatActivity() {
                     enableSeekBar()
                 }
             }
+        }
+    }
+
+    private fun toggleUiForVideo(status: String) {
+        if (status == "show") {
+            supportActionBar?.hide()
+            binding.videoFrame.visibility = View.VISIBLE
+            binding.videoView.visibility = View.VISIBLE
+            binding.recyclerView.visibility = View.GONE
+        }
+        if (status == "hide") {
+            supportActionBar?.show()
+            binding.videoFrame.visibility = View.GONE
+            binding.videoView.visibility = View.GONE
+            binding.recyclerView.visibility = View.VISIBLE
         }
     }
 
@@ -320,8 +335,7 @@ class BrowserActivity: AppCompatActivity() {
 
         if (toggleScreen) {
             disableSeekBar()
-            binding.videoView.visibility = RelativeLayout.GONE
-            binding.recyclerView.visibility = RelativeLayout.VISIBLE
+            toggleUiForVideo("hide")
         }
     }
 
@@ -356,7 +370,7 @@ class BrowserActivity: AppCompatActivity() {
             val cmd = arrayOf(
                 "-ss", "00:00:05",  // position (time duration specification)
                 "-y",   // overwrite output files without asking
-                "-i", baseDir + "/${currentVideo!!.file.nameWithoutExtension}.mp4",
+                "-i", baseDir + "/${viewModel.videoCurrent!!.file.nameWithoutExtension}.mp4",
                 "-codec:v", "libx264",
                 "-t", "00:00:08",  // duration, mutually exclusive with -to
                 "-map", "0",
