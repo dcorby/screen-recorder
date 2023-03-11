@@ -11,6 +11,7 @@ class Video(file: File) {
     var stateEditing = false
     var stateRenaming = false
 
+    // Should probably use an adapter instance variable for this, with a reference to Activity ViewModel
     var renameTo = ""
     var isNew = false
 }
