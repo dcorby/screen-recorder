@@ -40,12 +40,12 @@ class VideosAdapter(private val videos: MutableList<Video>,
         val onDelete: (Video, (() -> Unit)) -> Unit)
         : RecyclerView.ViewHolder(itemView) {
 
-        private val layout: LinearLayout = itemView.findViewById(R.id.item_layout)
-        private val textView: TextView = layout.findViewById(R.id.text_view)
-        private val delete: Button = layout.findViewById(R.id.delete)
-        private val rename: Button = layout.findViewById(R.id.rename)
-        private val isNew: TextView = layout.findViewById(R.id.is_new)
-        private val edit: ImageView = layout.findViewById(R.id.edit)
+        val layout: LinearLayout = itemView.findViewById(R.id.item_layout)
+        val textView: TextView = layout.findViewById(R.id.text_view)
+        val delete: Button = layout.findViewById(R.id.delete)
+        val rename: Button = layout.findViewById(R.id.rename)
+        val isNew: TextView = layout.findViewById(R.id.is_new)
+        val edit: ImageView = layout.findViewById(R.id.edit)
 
         // Bind data to view
         fun bind(video: Video) {
@@ -203,6 +203,26 @@ class VideosAdapter(private val videos: MutableList<Video>,
 
     override fun getItemCount(): Int {
         return videos.size
+    }
+
+    private fun resetLayout(holder: VideoItemViewHolder) {
+        val layout = holder.layout
+        layout.background = getDefaultBackground(layout.context)
+        holder.edit.visibility = ImageView.VISIBLE
+        holder.delete.visibility = RelativeLayout.GONE
+        holder.rename.visibility = RelativeLayout.GONE
+        val renameLayout = (holder.rename.parent.parent.parent as View).findViewById(R.id.item_rename) as LinearLayout
+        renameLayout.visibility = LinearLayout.GONE
+    }
+    
+    override fun onViewRecycled(holder: VideoItemViewHolder) {
+        resetLayout(holder)
+        super.onViewRecycled(holder)
+    }
+
+    override fun onViewDetachedFromWindow(holder: VideoItemViewHolder) {
+        resetLayout(holder)
+        super.onViewDetachedFromWindow(holder)
     }
 
     override fun onAttachedToRecyclerView(_recyclerView: RecyclerView) {

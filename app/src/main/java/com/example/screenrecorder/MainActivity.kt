@@ -63,6 +63,7 @@ class BrowserActivityViewModel : ViewModel() {
     var wasRecording: Boolean = false
     var sortBy: String? = null
     var videos = mutableListOf<Video>()
+    var videoNew: Video? = null
 }
 class BrowserActivity: AppCompatActivity() {
 
@@ -125,17 +126,17 @@ class BrowserActivity: AppCompatActivity() {
         recyclerView.adapter = videosAdapter
         toggleSort(viewModel.sortBy!!)
         if (viewModel.isInit) {
-            updateVideos()
+            updateVideos(true)
             videosAdapter.submitList(viewModel.videos)
             viewModel.isInit = false
         }
         binding.sortByName.setOnClickListener {
             toggleSort("name")
-            updateVideos()
+            updateVideos(false)
         }
         binding.sortByDate.setOnClickListener {
             toggleSort("date")
-            updateVideos()
+            updateVideos(false)
         }
 
         // Set controls listeners
@@ -170,9 +171,12 @@ class BrowserActivity: AppCompatActivity() {
                     cut(name) { success ->
                         if (success) {
                             stop(true)
+                            val file = File(this.filesDir.toString() + "/${name}.mp4")
+                            val video = Video(file)
+                            viewModel.videos.add(video)
                             binding.nameLayout.visibility = RelativeLayout.GONE
                             binding.nameButton.setOnClickListener(null)
-                            updateVideos()
+                            updateVideos(false)
                         }
                     }
                 }
@@ -212,23 +216,27 @@ class BrowserActivity: AppCompatActivity() {
         if (video == null) {
             Toast.makeText(this, "Enter a name for the file", Toast.LENGTH_SHORT).show()
         } else {
-            updateVideos()
+            updateVideos(false)
         }
     }
 
     private fun adapterOnDelete(video: Video, callback: (() -> Unit)) {
-        updateVideos()
+        viewModel.videos.remove(video)
         Toast.makeText(this, "Video ${video.filename} deleted", Toast.LENGTH_SHORT).show()
         callback()
     }
 
-    private fun updateVideos() {
-        viewModel.videos.clear()
-        File(this.filesDir.toString()).walk().forEach { file ->
-            if (file.extension == "mp4") {
-                val video = Video(file)
-                viewModel.videos.add(video)
+    private fun updateVideos(isInit: Boolean) {
+        if (isInit) {
+            File(this.filesDir.toString()).walk().forEach { file ->
+                if (file.extension == "mp4") {
+                    val video = Video(file)
+                    viewModel.videos.add(video)
+                }
             }
+        } else {
+            viewModel.videoNew?.isNew = false
+            viewModel.videoNew = null
         }
         if (viewModel.sortBy == "name") {
             viewModel.videos.sortBy { it.filename }
@@ -236,9 +244,12 @@ class BrowserActivity: AppCompatActivity() {
             viewModel.videos.sortByDescending { it.file.lastModified() }
             if (viewModel.wasRecording) {
                 viewModel.videos[0].isNew = true
+                viewModel.videoNew = viewModel.videos[0]
+                viewModel.wasRecording = false
             }
         }
-        videosAdapter.notifyItemRangeRemoved(0, viewModel.videos.size + 1)
+        //videosAdapter.notifyItemRangeRemoved(0, viewModel.videos.size + 1)
+        videosAdapter.notifyDataSetChanged()
     }
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
@@ -1041,7 +1052,8 @@ class MainActivity : Activity() {
             if (isRecording) {
                 virtualDisplay.release()
                 mediaProjection!!.unregisterCallback(mediaProjectionCallback)
-                mediaProjection!!.stop()
+                // Don't loose this, causes security exception on return to service
+                //mediaProjection!!.stop()
                 mediaRecorder.stop()
                 mediaRecorder.reset()
                 isRecording = false
