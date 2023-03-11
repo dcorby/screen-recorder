@@ -29,7 +29,6 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.core.view.marginBottom
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -60,12 +59,14 @@ class MediaProjectionCompanion {
 
 class BrowserActivityViewModel : ViewModel() {
     var job: Job = Job()
-    var sortBy: String = "name"
+    var isInit: Boolean = true
+    var wasRecording: Boolean = false
+    var sortBy: String? = null
+    var videos = mutableListOf<Video>()
 }
 class BrowserActivity: AppCompatActivity() {
 
     private lateinit var binding: ActivityBrowserBinding
-    private var videos = mutableListOf<Video>()
     private lateinit var videosAdapter: VideosAdapter
     private var currentVideo: Video? = null
     private lateinit var displayMetrics: DisplayMetrics
@@ -107,21 +108,35 @@ class BrowserActivity: AppCompatActivity() {
         // Get some instance vars, including the view model
         baseDir = this.filesDir.toString()
         viewModel = ViewModelProvider(this).get(BrowserActivityViewModel::class.java)
-        viewModel.sortBy = intent.getStringExtra("sortBy") ?: "name"
+        viewModel.wasRecording = intent.getBooleanExtra("wasRecording", false)
+        viewModel.sortBy = if (viewModel.wasRecording) {
+            "date"
+        } else {
+            viewModel.sortBy ?: "name"
+        }
 
         // Set the adapter
         videosAdapter = VideosAdapter(
-                            videos,
-                            { video, view -> adapterOnClick(video, view) },
-                            { video, button, callback -> adapterOnRename(video, button, callback) },
-                            { video, button, callback -> adapterOnDelete(video, button, callback) })
+                            viewModel.videos,
+                            { video -> adapterOnClick(video) },
+                            { video -> adapterOnRename(video) },
+                            { video, callback -> adapterOnDelete(video, callback) })
         val recyclerView: RecyclerView = binding.recyclerView
         recyclerView.adapter = videosAdapter
-        updateVideos()
-        videosAdapter.submitList(videos)
-        toggleSort(viewModel.sortBy)
-        binding.sortByName.setOnClickListener { toggleSort("name") }
-        binding.sortByDate.setOnClickListener { toggleSort("date") }
+        toggleSort(viewModel.sortBy!!)
+        if (viewModel.isInit) {
+            updateVideos()
+            videosAdapter.submitList(viewModel.videos)
+            viewModel.isInit = false
+        }
+        binding.sortByName.setOnClickListener {
+            toggleSort("name")
+            updateVideos()
+        }
+        binding.sortByDate.setOnClickListener {
+            toggleSort("date")
+            updateVideos()
+        }
 
         // Set controls listeners
         binding.play.setOnClickListener { play() }
@@ -158,8 +173,6 @@ class BrowserActivity: AppCompatActivity() {
                             binding.nameLayout.visibility = RelativeLayout.GONE
                             binding.nameButton.setOnClickListener(null)
                             updateVideos()
-                            // https://stackoverflow.com/questions/31759171/recyclerview-and-java-lang-indexoutofboundsexception-inconsistency-detected-in
-                            videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
                         }
                     }
                 }
@@ -179,65 +192,53 @@ class BrowserActivity: AppCompatActivity() {
             binding.sortByDate.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders)
             binding.sortByName.setTextColor(ContextCompat.getColor(this, R.color.red))
             binding.sortByName.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders_active)
+            viewModel.sortBy = "name"
         }
         if (by == "date") {
             binding.sortByDate.setTextColor(ContextCompat.getColor(this, R.color.red))
             binding.sortByDate.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders_active)
             binding.sortByName.setTextColor(ContextCompat.getColor(this, R.color.graybeige3))
             binding.sortByName.background = ContextCompat.getDrawable(this, R.drawable.rounded_button_borders)
+            viewModel.sortBy = "date"
         }
-        updateVideos()
-        videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
     }
 
-    private fun adapterOnClick(video: Video, view: View) {
+    private fun adapterOnClick(video: Video) {
         currentVideo = video
         retriever.setDataSource(applicationContext, video.file.toUri())
     }
 
-    private fun adapterOnRename(video: Video, button: Button, callback: (() -> Unit)) {
-        val layout = (button.parent.parent.parent as View).findViewById<LinearLayout>(R.id.item_rename)
-        layout.visibility = LinearLayout.VISIBLE
-        val editText = layout.findViewById<EditText>(R.id.name)
-        val button = layout.findViewById<Button>(R.id.do_rename)
-        button.setOnClickListener {
-            val name = editText.text.toString().replace(".mp4", "").trim()
-            if (name == "") {
-                Toast.makeText(this, "Enter a name for the file", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            var newFile = File(video.file.parent, name + ".mp4")
-            video.file.renameTo(newFile)
-            layout.visibility = LinearLayout.GONE
+    private fun adapterOnRename(video: Video?) {
+        if (video == null) {
+            Toast.makeText(this, "Enter a name for the file", Toast.LENGTH_SHORT).show()
+        } else {
             updateVideos()
-            // https://stackoverflow.com/questions/31759171/recyclerview-and-java-lang-indexoutofboundsexception-inconsistency-detected-in
-            videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
-            callback()
         }
     }
 
-    private fun adapterOnDelete(video: Video, button: Button, callback: (() -> Unit)) {
-        video.file.delete()
+    private fun adapterOnDelete(video: Video, callback: (() -> Unit)) {
         updateVideos()
-        // https://stackoverflow.com/questions/31759171/recyclerview-and-java-lang-indexoutofboundsexception-inconsistency-detected-in
-        videosAdapter.notifyItemRangeRemoved(0, videos.size + 1)
         Toast.makeText(this, "Video ${video.filename} deleted", Toast.LENGTH_SHORT).show()
         callback()
     }
 
     private fun updateVideos() {
-        videos.clear()
+        viewModel.videos.clear()
         File(this.filesDir.toString()).walk().forEach { file ->
             if (file.extension == "mp4") {
                 val video = Video(file)
-                videos.add(video)
+                viewModel.videos.add(video)
             }
         }
         if (viewModel.sortBy == "name") {
-            videos.sortBy { it.filename }
+            viewModel.videos.sortBy { it.filename }
         } else {
-            videos.sortBy { it.file.lastModified() }
+            viewModel.videos.sortByDescending { it.file.lastModified() }
+            if (viewModel.wasRecording) {
+                viewModel.videos[0].isNew = true
+            }
         }
+        videosAdapter.notifyItemRangeRemoved(0, viewModel.videos.size + 1)
     }
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
@@ -944,7 +945,7 @@ class MainActivity : Activity() {
         private fun launchBrowser(wasRecording: Boolean) {
             val intent = Intent(this, BrowserActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            intent.putExtra("sortBy", if (wasRecording) "date" else "name")
+            intent.putExtra("wasRecording", wasRecording)
             startActivity(intent)
             exit()
         }

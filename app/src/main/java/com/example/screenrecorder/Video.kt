@@ -7,4 +7,6 @@ class Video(file: File) {
     val filename: String = file.name
     val label = file.name.replace(".mp4", "")
     var editMode = false
+    var isNew = false
+    var selected = false
 }

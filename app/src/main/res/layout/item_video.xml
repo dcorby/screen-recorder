@@ -17,16 +17,45 @@
             android:orientation="horizontal"
             android:background="@drawable/border_black_top">
 
-            <TextView
-                android:id="@+id/text_view"
+            <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
-                android:padding="4dp"
-                android:layout_weight="1"
-                android:textSize="18sp"
-                android:textColor="@color/gray4"
-                android:gravity="center_vertical" />
+                android:orientation="horizontal"
+                android:layout_weight="1">
+                <TextView
+                    android:id="@+id/text_view"
+                    android:layout_height="wrap_content"
+                    android:layout_width="wrap_content"
+                    android:layout_margin="8dp"
+                    android:padding="4dp"
+                    android:textSize="18sp"
+                    android:textColor="@color/gray4"
+                    android:gravity="center_vertical" />
+                <TextView
+                    android:id="@+id/is_new"
+                    android:visibility="gone"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="8dp"
+                    android:layout_marginLeft="10dp"
+                    android:padding="4dp"
+                    android:textSize="14sp"
+                    android:textColor="@color/green"
+                    android:text="New!"
+                    android:gravity="center_vertical" />
+            </androidx.appcompat.widget.LinearLayoutCompat>
+            <!-- controls -->
+            <ImageView
+                android:id="@+id/edit"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="2dp"
+                android:layout_marginLeft="15dp"
+                android:layout_marginRight="15dp"
+                android:layout_gravity="right"
+                android:src="@drawable/ic_baseline_mode_edit_24">
+            </ImageView>
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/rename"
                 android:visibility="gone"

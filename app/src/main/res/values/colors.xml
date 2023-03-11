@@ -30,4 +30,6 @@
     <color name="graybeige3">#c3b3a2</color>
 
     <color name="transparent">#00ffffff</color>
+
+    <color name="green">#008000</color>
 </resources>
