@@ -265,7 +265,7 @@ class BrowserActivity: AppCompatActivity() {
                 startTimerPlayer()
             } else {
                 toggleUiForVideo("show")
-                binding.videoView.setMediaController(MediaController(this))
+                binding.videoView.setMediaController(null)
                 binding.videoView.setVideoURI(viewModel.videoCurrent!!.file.toUri())
                 binding.videoView.requestFocus()
                 binding.videoView.setOnPreparedListener {
@@ -273,11 +273,9 @@ class BrowserActivity: AppCompatActivity() {
                     binding.timeFrom.text = "00:00:00"
                     binding.timeTo.text = Utils.getTime(mediaPlayer!!.duration)
                     mediaPlayer!!.setOnCompletionListener {
-                        stop(false)
-                        /* stop() is pretty blunt here, but encountering a strange issue
-                           where some tracks replay mid-track, even after seeking to zero
-                           in this callback
-                         */
+                        binding.videoView.seekTo(binding.videoView.duration)
+                        pause()
+                        binding.videoView.seekTo(0)
                     }
                     enableSeekBar()
                 }
@@ -300,11 +298,13 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun pause() {
         binding.videoView.pause()
         binding.pause.visibility = RelativeLayout.GONE
         binding.play.visibility = RelativeLayout.VISIBLE
         handler.removeCallbacksAndMessages(null)
+        updateCurrent()
     }
 
     private fun stop(toggleScreen: Boolean) {
