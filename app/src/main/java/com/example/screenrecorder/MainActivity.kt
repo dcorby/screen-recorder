@@ -30,6 +30,8 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.core.widget.addTextChangedListener
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -47,6 +49,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.lifecycle.Observer
 
 const val SCREEN_CAPTURE_PERMISSION_CODE = 1
 const val OVERLAY_PERMISSION_CODE = 2
@@ -71,6 +74,14 @@ class BrowserActivityViewModel : ViewModel() {
     var boundLeftPercent: Float = 0f
     var boundRightPercent: Float = 0f
     var status: String = ""
+
+    var cutState: String = ""
+    var cutName: String = ""
+
+    // A few observers
+    val seekBarEnabled = MutableLiveData<Boolean>(null)
+    val controlsEnabled = MutableLiveData<Boolean>(null)
+    val progressEnabled = MutableLiveData<Boolean>(null)
 }
 class BrowserActivity: AppCompatActivity() {
 
@@ -115,6 +126,7 @@ class BrowserActivity: AppCompatActivity() {
         // Get some instance vars, including the view model
         baseDir = this.filesDir.toString()
         viewModel = ViewModelProvider(this).get(BrowserActivityViewModel::class.java)
+        initObservers()
         viewModel.wasRecording = intent.getBooleanExtra("wasRecording", false)
         viewModel.sortBy = if (viewModel.wasRecording) {
             "date"
@@ -138,7 +150,8 @@ class BrowserActivity: AppCompatActivity() {
         }
 
         // Set various listeners
-        enableControls()
+        viewModel.controlsEnabled.value = true
+        //enableControls()
         binding.sortByName.setOnClickListener {
             toggleSort("name")
             updateVideos(false)
@@ -175,63 +188,114 @@ class BrowserActivity: AppCompatActivity() {
                 if (pause) {
                     pause()
                 }
+                if (viewModel.cutState == "preparing" || viewModel.cutState == "cutting") {
+                    prepareCut()
+                }
             }
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
-    private fun cut() {
-        binding.cut.setOnClickListener {
-            val cutFrom = binding.timeFrom.currentTextColor == ContextCompat.getColor(this, R.color.red)
-            val cutTo = binding.timeTo.currentTextColor == ContextCompat.getColor(this, R.color.red)
-            pause()
-            if (cutFrom || cutTo) {
-                binding.nameLayout.visibility = RelativeLayout.VISIBLE
-                binding.nameClose.setOnClickListener {
-                    binding.nameLayout.visibility = RelativeLayout.GONE
+    private fun initObservers() {
+        viewModel.seekBarEnabled.value = null
+        viewModel.controlsEnabled.value = null
+        viewModel.progressEnabled.value = null
+        viewModel.seekBarEnabled.observe(this, Observer { seekBarEnabled ->
+            if (seekBarEnabled != null) {
+                if (seekBarEnabled) {
+                    enableSeekBar()
+                } else {
+                    disableSeekBar()
                 }
-                binding.nameButton.setOnClickListener {
-                    val name = binding.name.text.toString().replace(".mp4", "").trim()
-                    if (name == "") {
-                        Toast.makeText(this, "Enter a name for the cut video", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-                    binding.name.clearFocus()
-                    binding.nameLayout.visibility = RelativeLayout.GONE
-                    val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
-                    inputMethodManager.hideSoftInputFromWindow(binding.root.windowToken, 0)
-                    doCut(name) { success ->
-                        if (success) {
-                            val file = File(this.filesDir.toString() + "/${name}.mp4")
-                            val video = Video(file)
-                            viewModel.videos.add(video)
-                            binding.nameLayout.visibility = RelativeLayout.GONE
-                            binding.nameButton.setOnClickListener(null)
-                            updateVideos(false)
-                        } else {
-                            Toast.makeText(this, "There was an error cutting the video", Toast.LENGTH_SHORT).show()
-                        }
-                        enableSeekBar()
-                        enableControls()
-                        disableProgress()
-                    }
-                }
-            } else {
-                Toast.makeText(this, "Select bounds", Toast.LENGTH_SHORT).show()
             }
+        })
+        viewModel.controlsEnabled.observe(this, Observer { controlsEnabled ->
+            if (controlsEnabled != null) {
+                if (controlsEnabled) {
+                    enableControls()
+                } else {
+                    disableControls()
+                }
+            }
+        })
+        viewModel.progressEnabled.observe(this, Observer { progressEnabled ->
+            if (progressEnabled != null) {
+                if (progressEnabled) {
+                    enableProgress()
+                } else {
+                    disableProgress()
+                }
+            }
+        })
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O_MR1)
+    private fun prepareCut() {
+        if (mediaPlayer == null) {
+            Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (viewModel.cutState != "cutting") {
+            viewModel.cutState = "preparing"
+        }
+        val cutFrom = binding.timeFrom.currentTextColor == ContextCompat.getColor(this, R.color.red)
+        val cutTo = binding.timeTo.currentTextColor == ContextCompat.getColor(this, R.color.red)
+        pause()
+        if (cutFrom || cutTo) {
+            binding.nameLayout.visibility = RelativeLayout.VISIBLE
+            binding.name.addTextChangedListener { editable ->
+                viewModel.cutName = editable.toString()
+            }
+            binding.nameClose.setOnClickListener {
+                binding.nameLayout.visibility = RelativeLayout.GONE
+                viewModel.cutState = ""
+                viewModel.cutName = ""
+                binding.name.setText(viewModel.cutName)
+            }
+            if (viewModel.cutName != "") {
+                binding.name.setText(viewModel.cutName)
+            }
+            binding.nameButton.setOnClickListener {
+                val name = binding.name.text.toString().replace(".mp4", "").trim()
+                if (name == "") {
+                    Toast.makeText(this, "Enter a name for the cut video", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                prepareUiForCut()
+                viewModel.cutState = "cutting"
+                viewModel.cutName = ""
+                cut(name)
+            }
+            Log.v("TEST", "viewModel.cutState=${viewModel.cutState}")
+            if (viewModel.cutState == "cutting") {
+                prepareUiForCut()
+            }
+        } else {
+            Toast.makeText(this, "Select bounds", Toast.LENGTH_SHORT).show()
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun doCut(name: String, callback: ((Boolean) -> Unit)) {
+    private fun prepareUiForCut() {
+        binding.name.clearFocus()
+        binding.nameLayout.visibility = RelativeLayout.GONE
+        val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+        inputMethodManager.hideSoftInputFromWindow(binding.root.windowToken, 0)
+
+        pause()
+        //disableSeekBar()
+        //disableControls()
+        //enableProgress()
+        viewModel.seekBarEnabled.value = false
+        viewModel.controlsEnabled.value = false
+        viewModel.progressEnabled.value = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O_MR1)
+    private fun cut(name: String) {
         fun showToast(msg: String) {
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         }
-        //stop(true)
-        pause()
-        disableSeekBar()
-        disableControls()
-        enableProgress()
         viewModel.job = viewModel.viewModelScope.launch(Dispatchers.IO) {
 
             // https://github.com/arthenica/ffmpeg-kit
@@ -261,21 +325,42 @@ class BrowserActivity: AppCompatActivity() {
                     RETURN_CODE_SUCCESS -> {
                         Log.v("TEST", "Command completed successfully")
                         showToast("Video created (${name}.mp4)")
-                        callback(true)
+                        postCut(true, name)
                     }
                     RETURN_CODE_CANCEL -> {
                         Log.v("TEST", "Command cancelled")
                         showToast("Error creating video")
-                        callback(false)
+                        postCut(false, name)
                     }
                     else -> {
                         Log.v("TEST", String.format("Command failed with result=%d", result))
                         showToast("Error creating video")
-                        callback(false)
+                        postCut(false, name)
                     }
                 }
             }
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O_MR1)
+    private fun postCut(success: Boolean, name: String) {
+        if (success) {
+            val file = File(this.filesDir.toString() + "/${name}.mp4")
+            val video = Video(file)
+            viewModel.videos.add(video)
+            binding.nameLayout.visibility = RelativeLayout.GONE
+            binding.nameButton.setOnClickListener(null)
+            updateVideos(false)
+            viewModel.cutState = ""
+        } else {
+            Toast.makeText(this, "There was an error cutting the video", Toast.LENGTH_SHORT).show()
+        }
+        //enableSeekBar()
+        //enableControls()
+        //disableProgress()
+        viewModel.seekBarEnabled.value = true
+        viewModel.controlsEnabled.value = true
+        viewModel.progressEnabled.value = false
     }
 
     private fun toggleSort(by: String) {
@@ -368,7 +453,8 @@ class BrowserActivity: AppCompatActivity() {
                         pause()
                         binding.videoView.seekTo(0)
                     }
-                    enableSeekBar()
+                    //enableSeekBar()
+                    viewModel.seekBarEnabled.value = true
                     updateCurrent()
                     if (start) {
                         play(false, callback)
@@ -429,7 +515,8 @@ class BrowserActivity: AppCompatActivity() {
         binding.timeTo.text = "00:00:00"
         binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
 
-        disableSeekBar()
+        //disableSeekBar()
+        viewModel.seekBarEnabled.value = false
         toggleUiForVideo("hide")
 
         if (setStatus) {
@@ -552,7 +639,7 @@ class BrowserActivity: AppCompatActivity() {
         binding.stop.setOnClickListener { stop(true) }
         binding.back10.setOnClickListener { seekDiff(-10) }
         binding.forward10.setOnClickListener { seekDiff(10) }
-        binding.cut.setOnClickListener { cut() }
+        binding.cut.setOnClickListener { prepareCut() }
     }
 
     private fun disableControls() {
@@ -572,6 +659,7 @@ class BrowserActivity: AppCompatActivity() {
     }
 
     private fun disableProgress() {
+        Log.v("TEST", "disableProgress()")
         val animation = AlphaAnimation(1f, 0f)
         animation.duration = 200
         binding.progressFrame.animation = animation
@@ -727,7 +815,6 @@ class BrowserActivity: AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stop(false)
-        Log.v("TEST", "saving with viewModel.status=${viewModel.status}")
     }
 }
 
