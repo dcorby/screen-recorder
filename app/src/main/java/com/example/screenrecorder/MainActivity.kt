@@ -6,7 +6,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.content.res.ColorStateList
 import android.graphics.*
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -29,8 +28,6 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -67,6 +64,11 @@ class BrowserActivityViewModel : ViewModel() {
     var videos = mutableListOf<Video>()
     var videoNew: Video? = null
     var videoCurrent: Video? = null
+
+    var currentPosition: Int = -1
+    var boundLeftPercent: Float = 0f
+    var boundRightPercent: Float = 0f
+    var status: String = ""
 }
 class BrowserActivity: AppCompatActivity() {
 
@@ -142,7 +144,7 @@ class BrowserActivity: AppCompatActivity() {
         }
 
         // Set controls listeners
-        binding.play.setOnClickListener { play() }
+        binding.play.setOnClickListener { play(false, null) }
         binding.pause.setOnClickListener { pause() }
         binding.stop.setOnClickListener { stop(true) }
         binding.back10.setOnClickListener { seekDiff(-10) }
@@ -190,6 +192,23 @@ class BrowserActivity: AppCompatActivity() {
         // Display metrics are needed for framesHolder
         displayMetrics = DisplayMetrics()
         windowManager.getDefaultDisplay().getMetrics(displayMetrics)
+
+        // Re-init current position and bounds offsets if necessary
+        if (viewModel.status == "playing" || viewModel.status == "paused") {
+            val pause = viewModel.status == "paused"
+            play(true) {
+                (binding.boundLeft.layoutParams as FrameLayout.LayoutParams).leftMargin =
+                    (viewModel.boundLeftPercent * binding.bar.width).toInt()
+                (binding.boundRight.layoutParams as FrameLayout.LayoutParams).leftMargin =
+                    (viewModel.boundRightPercent * binding.bar.width).toInt()
+                // binding.videoView.seekTo(viewModel.currentPosition)
+                // ^ Doesn't seek reliably, sets to zero. Why?
+                mediaPlayer!!.seekTo(viewModel.currentPosition.toLong(), MediaPlayer.SEEK_CLOSEST)
+                if (pause) {
+                    pause()
+                }
+            }
+        }
     }
 
     private fun toggleSort(by: String) {
@@ -254,7 +273,8 @@ class BrowserActivity: AppCompatActivity() {
     }
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
-    private fun play() {
+    private fun play(start: Boolean, callback: (() -> Unit)?) {
+        viewModel.status = "playing"
         if (viewModel.videoCurrent == null) {
             Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
         } else {
@@ -263,6 +283,9 @@ class BrowserActivity: AppCompatActivity() {
                 binding.pause.visibility = View.VISIBLE
                 binding.videoView.start()
                 startTimerPlayer()
+                if (callback != null) {
+                    callback()
+                }
             } else {
                 toggleUiForVideo("show")
                 binding.videoView.setMediaController(null)
@@ -271,13 +294,17 @@ class BrowserActivity: AppCompatActivity() {
                 binding.videoView.setOnPreparedListener {
                     mediaPlayer = it
                     binding.timeFrom.text = "00:00:00"
-                    binding.timeTo.text = Utils.getTime(mediaPlayer!!.duration)
-                    mediaPlayer!!.setOnCompletionListener {
+                    binding.timeTo.text = Utils.getTime(binding.videoView.duration)
+                    binding.videoView.setOnCompletionListener {
                         binding.videoView.seekTo(binding.videoView.duration)
                         pause()
                         binding.videoView.seekTo(0)
                     }
                     enableSeekBar()
+                    updateCurrent()
+                    if (start) {
+                        play(false, callback)
+                    }
                 }
             }
         }
@@ -305,9 +332,10 @@ class BrowserActivity: AppCompatActivity() {
         binding.play.visibility = RelativeLayout.VISIBLE
         handler.removeCallbacksAndMessages(null)
         updateCurrent()
+        viewModel.status = "paused"
     }
 
-    private fun stop(toggleScreen: Boolean) {
+    private fun stop(setStatus: Boolean) {
         binding.pause.visibility = RelativeLayout.GONE
         binding.play.visibility = RelativeLayout.VISIBLE
         handler.removeCallbacksAndMessages(null)
@@ -333,26 +361,28 @@ class BrowserActivity: AppCompatActivity() {
         binding.timeTo.text = "00:00:00"
         binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
 
-        if (toggleScreen) {
-            disableSeekBar()
-            toggleUiForVideo("hide")
+        disableSeekBar()
+        toggleUiForVideo("hide")
+
+        if (setStatus) {
+            viewModel.status = "stopped"
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun seekDiff(diff: Int) {
         if (mediaPlayer != null) {
-            var to = mediaPlayer!!.currentPosition + diff * 1000
+            var to = binding.videoView.currentPosition + diff * 1000
             if (to < 0) {
                 to = 0
             }
-            if (to > mediaPlayer!!.duration) {
-                to = mediaPlayer!!.duration
+            if (to > binding.videoView.duration) {
+                to = binding.videoView.duration
                 pause()
             }
             mediaPlayer!!.seekTo(to.toLong(), MediaPlayer.SEEK_CLOSEST)
             updateCurrent()
-            binding.status.text = Utils.getTime(mediaPlayer!!.currentPosition)
+            binding.status.text = Utils.getTime(binding.videoView.currentPosition)
         }
     }
 
@@ -403,7 +433,7 @@ class BrowserActivity: AppCompatActivity() {
     }
 
     private fun startTimerPlayer() {
-        binding.status.text = Utils.getTime(mediaPlayer!!.currentPosition)
+        binding.status.text = Utils.getTime(binding.videoView.currentPosition)
         handler.postDelayed(object : Runnable {
             @RequiresApi(Build.VERSION_CODES.O)
             override fun run() {
@@ -411,18 +441,18 @@ class BrowserActivity: AppCompatActivity() {
                 updateCurrent()
             }
         }, 100)
-        binding.duration.text = Utils.getTime(mediaPlayer!!.duration)
+        binding.duration.text = Utils.getTime(binding.videoView.duration)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun updateCurrent() {
         checkBounds()
-        val pct = mediaPlayer!!.currentPosition / mediaPlayer!!.duration.toFloat()
-        val offset = pct * binding.bar.width
+        val percent = binding.videoView.currentPosition / binding.videoView.duration.toFloat()
+        val offset = percent * binding.bar.width
         val params = binding.current.layoutParams as FrameLayout.LayoutParams
         params.leftMargin = offset.toInt() + dpToPx(15f).toInt()
         binding.current.layoutParams = params
-        binding.status.text = Utils.getTime(mediaPlayer!!.currentPosition)
+        binding.status.text = Utils.getTime(binding.videoView.currentPosition)
         updateBounds()
     }
 
@@ -439,7 +469,7 @@ class BrowserActivity: AppCompatActivity() {
             binding.timeTo.text = Utils.getTime(getBoundPosition(binding.boundRight))
             binding.timeTo.setTextColor(Color.parseColor("#9e1a1a"))
         } else {
-            binding.timeTo.text = Utils.getTime(mediaPlayer!!.duration)
+            binding.timeTo.text = Utils.getTime(binding.videoView.duration)
             binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
         }
     }
@@ -447,12 +477,11 @@ class BrowserActivity: AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     private fun checkBounds() {
         val leftPosition = getBoundPosition(binding.boundLeft)
-        if (mediaPlayer!!.currentPosition < leftPosition) {
+        if (binding.videoView.currentPosition < leftPosition) {
             mediaPlayer!!.seekTo(leftPosition.toLong(), MediaPlayer.SEEK_CLOSEST)
-
         }
         val rightPosition = getBoundPosition(binding.boundRight)
-        if (mediaPlayer!!.currentPosition > rightPosition) {
+        if (binding.videoView.currentPosition > rightPosition) {
             mediaPlayer!!.seekTo(rightPosition.toLong(), MediaPlayer.SEEK_CLOSEST)
             pause()
         }
@@ -461,7 +490,7 @@ class BrowserActivity: AppCompatActivity() {
     private fun getBoundPosition(v: View) : Int {
         val params = v.layoutParams as FrameLayout.LayoutParams
         val pct = params.leftMargin / binding.bar.width.toFloat()
-        val ms = (pct * mediaPlayer!!.duration).toInt()
+        val ms = (pct * binding.videoView.duration).toInt()
         return ms
     }
 
@@ -498,7 +527,7 @@ class BrowserActivity: AppCompatActivity() {
     private fun seek() {
         val params = binding.current.layoutParams as FrameLayout.LayoutParams
         val pct = (params.leftMargin - dpToPx(15f)) / binding.bar.width.toFloat()
-        val ms = pct * mediaPlayer!!.duration
+        val ms = pct * binding.videoView.duration
         mediaPlayer!!.seekTo(ms.toLong(), MediaPlayer.SEEK_CLOSEST)
         updateCurrent()
     }
@@ -629,6 +658,21 @@ class BrowserActivity: AppCompatActivity() {
             }
             return true
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        viewModel.currentPosition = binding.videoView.currentPosition
+        viewModel.boundLeftPercent =
+            (binding.boundLeft.layoutParams as FrameLayout.LayoutParams).leftMargin / binding.bar.width.toFloat()
+        viewModel.boundRightPercent =
+            (binding.boundRight.layoutParams as FrameLayout.LayoutParams).leftMargin / binding.bar.width.toFloat()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stop(false)
+        Log.v("TEST", "saving with viewModel.status=${viewModel.status}")
     }
 }
 
