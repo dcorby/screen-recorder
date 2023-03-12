@@ -120,6 +120,27 @@
             android:layout_height="match_parent"
             android:layout_gravity="center"
             android:visibility="gone" />
+
+        <!-- Progress overlay -->
+        <FrameLayout
+            android:id="@+id/progress_frame"
+            android:visibility="gone"
+            android:animateLayoutChanges="true"
+            android:alpha="0.8"
+            android:background="#444444"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <ProgressBar
+                android:id="@+id/progress_bar"
+                style="?android:attr/progressBarStyleLarge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:indeterminate="true"
+                android:layout_gravity="center" />
+        </FrameLayout>
+
     </FrameLayout>
 
     <androidx.appcompat.widget.LinearLayoutCompat
@@ -222,16 +243,6 @@
                     </ImageView>
                 </androidx.appcompat.widget.LinearLayoutCompat>
             </FrameLayout>
-
-            <!--
-            <SeekBar
-                android:id="@+id/seekbar"
-                android:layerType="software"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-            </SeekBar>
-            -->
-
         </androidx.appcompat.widget.LinearLayoutCompat>
 
         <!-- border -->

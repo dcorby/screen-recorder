@@ -22,6 +22,8 @@ import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
 import android.view.*
+import android.view.animation.AlphaAnimation
+import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.annotation.RequiresApi
@@ -134,6 +136,9 @@ class BrowserActivity: AppCompatActivity() {
             videosAdapter.submitList(viewModel.videos)
             viewModel.isInit = false
         }
+
+        // Set various listeners
+        enableControls()
         binding.sortByName.setOnClickListener {
             toggleSort("name")
             updateVideos(false)
@@ -143,50 +148,12 @@ class BrowserActivity: AppCompatActivity() {
             updateVideos(false)
         }
 
-        // Set controls listeners
-        binding.play.setOnClickListener { play(false, null) }
-        binding.pause.setOnClickListener { pause() }
-        binding.stop.setOnClickListener { stop(true) }
-        binding.back10.setOnClickListener { seekDiff(-10) }
-        binding.forward10.setOnClickListener { seekDiff(10) }
+        // Wait for bar layout and set right bound
         binding.bar.post {
             val width = binding.bar.width
             val params = binding.boundRight.layoutParams as FrameLayout.LayoutParams
             params.leftMargin = width
             binding.boundRight.layoutParams = params
-        }
-        binding.nameClose.setOnClickListener {
-            binding.nameLayout.visibility = RelativeLayout.GONE
-        }
-
-        // Handle cut
-        binding.cut.setOnClickListener {
-            val cutFrom = binding.timeFrom.currentTextColor == ContextCompat.getColor(this, R.color.red)
-            val cutTo = binding.timeTo.currentTextColor == ContextCompat.getColor(this, R.color.red)
-            if (cutFrom || cutTo) {
-                pause()
-                binding.nameLayout.visibility = RelativeLayout.VISIBLE
-                binding.nameButton.setOnClickListener {
-                    val name = binding.name.text.toString().replace(".mp4", "").trim()
-                    if (name == "") {
-                        Toast.makeText(this, "Enter a name for the cut file", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-                    cut(name) { success ->
-                        if (success) {
-                            stop(true)
-                            val file = File(this.filesDir.toString() + "/${name}.mp4")
-                            val video = Video(file)
-                            viewModel.videos.add(video)
-                            binding.nameLayout.visibility = RelativeLayout.GONE
-                            binding.nameButton.setOnClickListener(null)
-                            updateVideos(false)
-                        }
-                    }
-                }
-            } else {
-                Toast.makeText(this, "Select bounds", Toast.LENGTH_SHORT).show()
-            }
         }
 
         // Display metrics are needed for framesHolder
@@ -207,6 +174,105 @@ class BrowserActivity: AppCompatActivity() {
                 mediaPlayer!!.seekTo(viewModel.currentPosition.toLong(), MediaPlayer.SEEK_CLOSEST)
                 if (pause) {
                     pause()
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O_MR1)
+    private fun cut() {
+        binding.cut.setOnClickListener {
+            val cutFrom = binding.timeFrom.currentTextColor == ContextCompat.getColor(this, R.color.red)
+            val cutTo = binding.timeTo.currentTextColor == ContextCompat.getColor(this, R.color.red)
+            pause()
+            if (cutFrom || cutTo) {
+                binding.nameLayout.visibility = RelativeLayout.VISIBLE
+                binding.nameClose.setOnClickListener {
+                    binding.nameLayout.visibility = RelativeLayout.GONE
+                }
+                binding.nameButton.setOnClickListener {
+                    val name = binding.name.text.toString().replace(".mp4", "").trim()
+                    if (name == "") {
+                        Toast.makeText(this, "Enter a name for the cut video", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    binding.name.clearFocus()
+                    binding.nameLayout.visibility = RelativeLayout.GONE
+                    val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+                    inputMethodManager.hideSoftInputFromWindow(binding.root.windowToken, 0)
+                    doCut(name) { success ->
+                        if (success) {
+                            val file = File(this.filesDir.toString() + "/${name}.mp4")
+                            val video = Video(file)
+                            viewModel.videos.add(video)
+                            binding.nameLayout.visibility = RelativeLayout.GONE
+                            binding.nameButton.setOnClickListener(null)
+                            updateVideos(false)
+                        } else {
+                            Toast.makeText(this, "There was an error cutting the video", Toast.LENGTH_SHORT).show()
+                        }
+                        enableSeekBar()
+                        enableControls()
+                        disableProgress()
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Select bounds", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun doCut(name: String, callback: ((Boolean) -> Unit)) {
+        fun showToast(msg: String) {
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        }
+        //stop(true)
+        pause()
+        disableSeekBar()
+        disableControls()
+        enableProgress()
+        viewModel.job = viewModel.viewModelScope.launch(Dispatchers.IO) {
+
+            // https://github.com/arthenica/ffmpeg-kit
+            // https://ffmpeg.org/ffmpeg.html
+            // https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax
+            // This command produced the best quality video. libx264 required a special lib version (see gradle)
+            val duration = Utils.getSec(binding.timeTo.text.toString()) - Utils.getSec(binding.timeFrom.text.toString())
+            val durationTime = Utils.getTime((duration * 1000).toInt())
+
+            val cmd = arrayOf(
+                "-ss", binding.timeFrom.text.toString(),
+                //"-ss", "00:00:05",  // position (time duration specification)
+                "-y",   // overwrite output files without asking
+                "-i", baseDir + "/${viewModel.videoCurrent!!.file.nameWithoutExtension}.mp4",
+                "-codec:v", "libx264",
+                //"-t", "00:00:08",  // duration, mutually exclusive with -to
+                "-t", durationTime,
+                "-map", "0",
+                "-s", "${displayMetrics.widthPixels}x${displayMetrics.heightPixels}",
+                "-r", "23",
+                baseDir + "/${name}.mp4"
+            )
+
+            val result = FFmpeg.execute(cmd)
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    RETURN_CODE_SUCCESS -> {
+                        Log.v("TEST", "Command completed successfully")
+                        showToast("Video created (${name}.mp4)")
+                        callback(true)
+                    }
+                    RETURN_CODE_CANCEL -> {
+                        Log.v("TEST", "Command cancelled")
+                        showToast("Error creating video")
+                        callback(false)
+                    }
+                    else -> {
+                        Log.v("TEST", String.format("Command failed with result=%d", result))
+                        showToast("Error creating video")
+                        callback(false)
+                    }
                 }
             }
         }
@@ -388,52 +454,6 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    private fun cut(name: String, callback: ((Boolean) -> Unit)) {
-        fun showToast(msg: String) {
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-        }
-
-        viewModel.job = viewModel.viewModelScope.launch(Dispatchers.IO) {
-
-            // https://github.com/arthenica/ffmpeg-kit
-            // https://ffmpeg.org/ffmpeg.html
-            // https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax
-            // This command produced the best quality video. libx264 required a special lib version (see gradle)
-            val cmd = arrayOf(
-                "-ss", "00:00:05",  // position (time duration specification)
-                "-y",   // overwrite output files without asking
-                "-i", baseDir + "/${viewModel.videoCurrent!!.file.nameWithoutExtension}.mp4",
-                "-codec:v", "libx264",
-                "-t", "00:00:08",  // duration, mutually exclusive with -to
-                "-map", "0",
-                "-s", "${displayMetrics.widthPixels}x${displayMetrics.heightPixels}",
-                "-r", "23",
-                baseDir + "/${name}.mp4"
-            )
-
-            val result = FFmpeg.execute(cmd)
-            withContext(Dispatchers.Main) {
-                when (result) {
-                    RETURN_CODE_SUCCESS -> {
-                        Log.v("TEST", "Command completed successfully")
-                        showToast("Video created (${name}.mp4)")
-                        callback(true)
-                    }
-                    RETURN_CODE_CANCEL -> {
-                        Log.v("TEST", "Command cancelled")
-                        showToast("Error creating video")
-                        callback(false)
-                    }
-                    else -> {
-                        Log.v("TEST", String.format("Command failed with result=%d", result))
-                        showToast("Error creating video")
-                        callback(false)
-                    }
-                }
-            }
-        }
-    }
-
     private fun startTimerPlayer() {
         binding.status.text = Utils.getTime(binding.videoView.currentPosition)
         handler.postDelayed(object : Runnable {
@@ -523,6 +543,39 @@ class BrowserActivity: AppCompatActivity() {
         binding.boundLeft.setOnTouchListener(null)
         binding.boundRight.setOnTouchListener(null)
         binding.barHolder.setOnTouchListener(null)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O_MR1)
+    private fun enableControls() {
+        binding.play.setOnClickListener { play(false, null) }
+        binding.pause.setOnClickListener { pause() }
+        binding.stop.setOnClickListener { stop(true) }
+        binding.back10.setOnClickListener { seekDiff(-10) }
+        binding.forward10.setOnClickListener { seekDiff(10) }
+        binding.cut.setOnClickListener { cut() }
+    }
+
+    private fun disableControls() {
+        binding.play.setOnClickListener(null)
+        binding.pause.setOnClickListener(null)
+        binding.stop.setOnClickListener(null)
+        binding.back10.setOnClickListener(null)
+        binding.forward10.setOnClickListener(null)
+        binding.cut.setOnClickListener(null)
+    }
+
+    private fun enableProgress() {
+        val animation = AlphaAnimation(0f, 1f)
+        animation.duration = 200
+        binding.progressFrame.animation = animation
+        binding.progressFrame.visibility = View.VISIBLE
+    }
+
+    private fun disableProgress() {
+        val animation = AlphaAnimation(1f, 0f)
+        animation.duration = 200
+        binding.progressFrame.animation = animation
+        binding.progressFrame.visibility = View.GONE
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -1182,6 +1235,11 @@ class Utils {
             val m = ms / (1000 * 60) % 60
             val s = (ms / 1000) % 60
             return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
+        }
+        fun getSec(time: String): Int {
+            val parts = time.split(":").toTypedArray()
+            val sec = parts[0].toInt() * 60 * 60 + parts[1].toInt() * 60 + parts[2].toInt()
+            return sec
         }
     }
 }
