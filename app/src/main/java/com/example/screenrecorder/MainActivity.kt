@@ -194,9 +194,10 @@ class BrowserActivity: AppCompatActivity() {
         windowManager.getDefaultDisplay().getMetrics(displayMetrics)
 
         // Re-init current position and bounds offsets if necessary
-        if (viewModel.status == "playing" || viewModel.status == "paused") {
+        if (viewModel.status == "pending" || viewModel.status == "playing" || viewModel.status == "paused") {
             val pause = viewModel.status == "paused"
-            play(true) {
+            val start = viewModel.status == "playing" || viewModel.status == "paused"
+            play(start) {
                 (binding.boundLeft.layoutParams as FrameLayout.LayoutParams).leftMargin =
                     (viewModel.boundLeftPercent * binding.bar.width).toInt()
                 (binding.boundRight.layoutParams as FrameLayout.LayoutParams).leftMargin =
@@ -274,11 +275,11 @@ class BrowserActivity: AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.O_MR1)
     private fun play(start: Boolean, callback: (() -> Unit)?) {
-        viewModel.status = "playing"
         if (viewModel.videoCurrent == null) {
             Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
         } else {
             if (mediaPlayer != null) {
+                viewModel.status = "playing"
                 binding.play.visibility = View.GONE
                 binding.pause.visibility = View.VISIBLE
                 binding.videoView.start()
@@ -287,6 +288,7 @@ class BrowserActivity: AppCompatActivity() {
                     callback()
                 }
             } else {
+                viewModel.status = "pending"
                 toggleUiForVideo("show")
                 binding.videoView.setMediaController(null)
                 binding.videoView.setVideoURI(viewModel.videoCurrent!!.file.toUri())
