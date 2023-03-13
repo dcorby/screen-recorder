@@ -1,11 +1,13 @@
 package com.example.screenrecorder
 
+import android.Manifest.permission.RECORD_AUDIO
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.graphics.*
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -17,7 +19,6 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
-import android.text.InputType
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
@@ -27,6 +28,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.widget.addTextChangedListener
@@ -50,9 +52,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.lifecycle.Observer
-
-const val SCREEN_CAPTURE_PERMISSION_CODE = 1
-const val OVERLAY_PERMISSION_CODE = 2
 
 class MediaProjectionCompanion {
     companion object {
@@ -790,16 +789,37 @@ class BrowserActivity: AppCompatActivity() {
     }
 }
 
+const val SCREEN_CAPTURE_PERMISSION_CODE = 1
+const val OVERLAY_PERMISSION_CODE = 2
+const val RECORD_AUDIO_PERMISSION_CODE = 3
+
 class MainActivity : Activity() {
 
     private val displayMetrics: DisplayMetrics = DisplayMetrics()
     private lateinit var serviceIntent: Intent
+    private var audioPermissionAccepted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         startActivityForResult(mediaProjectionManager!!.createScreenCaptureIntent(), SCREEN_CAPTURE_PERMISSION_CODE)
+
+        ActivityCompat.requestPermissions(this, arrayOf(RECORD_AUDIO), SCREEN_CAPTURE_PERMISSION_CODE)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        audioPermissionAccepted = if (requestCode == RECORD_AUDIO_PERMISSION_CODE) {
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        } else {
+            false
+        }
+        if (!audioPermissionAccepted) {
+            Toast.makeText(this, "Audio Recording permission denied", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -807,7 +827,7 @@ class MainActivity : Activity() {
         if (requestCode == SCREEN_CAPTURE_PERMISSION_CODE) {
 
             if (resultCode != Activity.RESULT_OK) {
-                Toast.makeText(this, "Screen Recording Permission Denied", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Screen Recording permission denied", Toast.LENGTH_SHORT).show()
                 finish()
                 return
             }
@@ -1127,10 +1147,12 @@ class MainActivity : Activity() {
         private fun startRecording() {
             openFull.visibility = RelativeLayout.INVISIBLE
             mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE)
+            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
             mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             mediaRecorder.setOutputFile(this.filesDir.toString() + "/${recordingName}.mp4")
             mediaRecorder.setVideoSize(screenWidth, screenHeight)
             mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             mediaRecorder.setVideoEncodingBitRate(512 * 1_000)
             mediaRecorder.setVideoFrameRate(16)
             mediaRecorder.setVideoEncodingBitRate(3_000_000)
