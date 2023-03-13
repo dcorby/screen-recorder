@@ -5,12 +5,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
+
 
 class VideosAdapter(private val videos: MutableList<Video>,
                     private val onClick: (Video) -> Unit,
@@ -105,6 +107,8 @@ class VideosAdapter(private val videos: MutableList<Video>,
                     exitRename()
                 }
             }
+
+            // Handle rename
             rename.setOnClickListener {
                 enterRename()
             }
@@ -112,14 +116,35 @@ class VideosAdapter(private val videos: MutableList<Video>,
                 enterRename()
             }
 
+            fun enterDelete() {
+                editVideo?.stateDeleting = true
+                val builder: AlertDialog.Builder = AlertDialog.Builder(itemView.context)
+                builder.setMessage("Are you sure?")
+                    .setCancelable(false)
+                    .setPositiveButton("Yes") { dialog, id ->
+                        editVideo?.stateDeleting = false
+                        editVideo?.file?.delete()
+                        onDelete(editVideo!!) {
+                            delete.visibility = RelativeLayout.GONE
+                            rename.visibility = RelativeLayout.GONE
+                            video.stateEditing = false
+                            editVideo = null
+                        }
+                    }
+                    .setNegativeButton("No") { dialog, id ->
+                        editVideo?.stateDeleting = false
+                    }
+                val alert = builder!!.create()
+                alert.setTitle("Confirm Delete")
+                alert.show()
+            }
+
             // Handle delete
             delete.setOnClickListener {
-                editVideo?.file?.delete()
-                onDelete(editVideo!!) {
-                    delete.visibility = RelativeLayout.GONE
-                    rename.visibility = RelativeLayout.GONE
-                    video.stateEditing = false
-                }
+                enterDelete()
+            }
+            if (video.stateDeleting) {
+                enterDelete()
             }
 
             // Item select

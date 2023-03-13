@@ -26,11 +26,11 @@ import android.view.animation.AlphaAnimation
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import android.widget.RelativeLayout.LayoutParams
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.widget.addTextChangedListener
+import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -83,6 +83,7 @@ class BrowserActivityViewModel : ViewModel() {
     val controlsEnabled = MutableLiveData<Boolean>(null)
     val progressEnabled = MutableLiveData<Boolean>(null)
 }
+class DeleteDialog : DialogFragment()
 class BrowserActivity: AppCompatActivity() {
 
     private lateinit var binding: ActivityBrowserBinding
@@ -94,7 +95,6 @@ class BrowserActivity: AppCompatActivity() {
     private lateinit var viewModel: BrowserActivityViewModel
     private var baseDir = ""
 
-    @RequiresApi(Build.VERSION_CODES.O_MR1)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -148,10 +148,10 @@ class BrowserActivity: AppCompatActivity() {
             videosAdapter.submitList(viewModel.videos)
             viewModel.isInit = false
         }
+        //videosAdapter.deleteDialog = DeleteDialog()
 
         // Set various listeners
         viewModel.controlsEnabled.value = true
-        //enableControls()
         binding.sortByName.setOnClickListener {
             toggleSort("name")
             updateVideos(false)
@@ -195,7 +195,6 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O_MR1)
     private fun initObservers() {
         viewModel.seekBarEnabled.value = null
         viewModel.controlsEnabled.value = null
@@ -229,7 +228,6 @@ class BrowserActivity: AppCompatActivity() {
         })
     }
 
-    @RequiresApi(Build.VERSION_CODES.O_MR1)
     private fun prepareCut() {
         if (mediaPlayer == null) {
             Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
@@ -266,7 +264,6 @@ class BrowserActivity: AppCompatActivity() {
                 viewModel.cutName = ""
                 cut(name)
             }
-            Log.v("TEST", "viewModel.cutState=${viewModel.cutState}")
             if (viewModel.cutState == "cutting") {
                 prepareUiForCut()
             }
@@ -275,23 +272,17 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun prepareUiForCut() {
         binding.name.clearFocus()
         binding.nameLayout.visibility = RelativeLayout.GONE
         val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
         inputMethodManager.hideSoftInputFromWindow(binding.root.windowToken, 0)
-
         pause()
-        //disableSeekBar()
-        //disableControls()
-        //enableProgress()
         viewModel.seekBarEnabled.value = false
         viewModel.controlsEnabled.value = false
         viewModel.progressEnabled.value = true
     }
 
-    @RequiresApi(Build.VERSION_CODES.O_MR1)
     private fun cut(name: String) {
         fun showToast(msg: String) {
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
@@ -306,13 +297,11 @@ class BrowserActivity: AppCompatActivity() {
             val durationTime = Utils.getTime((duration * 1000).toInt())
 
             val cmd = arrayOf(
-                "-ss", binding.timeFrom.text.toString(),
-                //"-ss", "00:00:05",  // position (time duration specification)
+                "-ss", binding.timeFrom.text.toString(),    // position (time duration specification)
                 "-y",   // overwrite output files without asking
                 "-i", baseDir + "/${viewModel.videoCurrent!!.file.nameWithoutExtension}.mp4",
                 "-codec:v", "libx264",
-                //"-t", "00:00:08",  // duration, mutually exclusive with -to
-                "-t", durationTime,
+                "-t", durationTime,    // duration, mutually exclusive with -to
                 "-map", "0",
                 "-s", "${displayMetrics.widthPixels}x${displayMetrics.heightPixels}",
                 "-r", "23",
@@ -342,7 +331,6 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O_MR1)
     private fun postCut(success: Boolean, name: String) {
         if (success) {
             val file = File(this.filesDir.toString() + "/${name}.mp4")
@@ -355,9 +343,6 @@ class BrowserActivity: AppCompatActivity() {
         } else {
             Toast.makeText(this, "There was an error cutting the video", Toast.LENGTH_SHORT).show()
         }
-        //enableSeekBar()
-        //enableControls()
-        //disableProgress()
         viewModel.seekBarEnabled.value = true
         viewModel.controlsEnabled.value = true
         viewModel.progressEnabled.value = false
@@ -396,6 +381,7 @@ class BrowserActivity: AppCompatActivity() {
     private fun adapterOnDelete(video: Video, callback: (() -> Unit)) {
         viewModel.videos.remove(video)
         Toast.makeText(this, "Video ${video.filename} deleted", Toast.LENGTH_SHORT).show()
+        updateVideos(false)
         callback()
     }
 
@@ -424,7 +410,6 @@ class BrowserActivity: AppCompatActivity() {
         videosAdapter.notifyItemRangeRemoved(0, viewModel.videos.size + 1)
     }
 
-    @RequiresApi(Build.VERSION_CODES.O_MR1)
     private fun play(start: Boolean, callback: (() -> Unit)?) {
         if (viewModel.videoCurrent == null) {
             Toast.makeText(this, "Select a video", Toast.LENGTH_SHORT).show()
@@ -453,7 +438,6 @@ class BrowserActivity: AppCompatActivity() {
                         pause()
                         binding.videoView.seekTo(0)
                     }
-                    //enableSeekBar()
                     viewModel.seekBarEnabled.value = true
                     updateCurrent()
                     if (start) {
@@ -479,7 +463,6 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun pause() {
         binding.videoView.pause()
         binding.pause.visibility = RelativeLayout.GONE
@@ -515,7 +498,6 @@ class BrowserActivity: AppCompatActivity() {
         binding.timeTo.text = "00:00:00"
         binding.timeTo.setTextColor(Color.parseColor("#ffffff"))
 
-        //disableSeekBar()
         viewModel.seekBarEnabled.value = false
         toggleUiForVideo("hide")
 
@@ -524,7 +506,6 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun seekDiff(diff: Int) {
         if (mediaPlayer != null) {
             var to = binding.videoView.currentPosition + diff * 1000
@@ -544,7 +525,6 @@ class BrowserActivity: AppCompatActivity() {
     private fun startTimerPlayer() {
         binding.status.text = Utils.getTime(binding.videoView.currentPosition)
         handler.postDelayed(object : Runnable {
-            @RequiresApi(Build.VERSION_CODES.O)
             override fun run() {
                 handler.postDelayed(this, 100)
                 updateCurrent()
@@ -553,7 +533,6 @@ class BrowserActivity: AppCompatActivity() {
         binding.duration.text = Utils.getTime(binding.videoView.duration)
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun updateCurrent() {
         checkBounds()
         val percent = binding.videoView.currentPosition / binding.videoView.duration.toFloat()
@@ -583,7 +562,6 @@ class BrowserActivity: AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun checkBounds() {
         val leftPosition = getBoundPosition(binding.boundLeft)
         if (binding.videoView.currentPosition < leftPosition) {
@@ -632,7 +610,6 @@ class BrowserActivity: AppCompatActivity() {
         binding.barHolder.setOnTouchListener(null)
     }
 
-    @RequiresApi(Build.VERSION_CODES.O_MR1)
     private fun enableControls() {
         binding.play.setOnClickListener { play(false, null) }
         binding.pause.setOnClickListener { pause() }
@@ -659,14 +636,12 @@ class BrowserActivity: AppCompatActivity() {
     }
 
     private fun disableProgress() {
-        Log.v("TEST", "disableProgress()")
         val animation = AlphaAnimation(1f, 0f)
         animation.duration = 200
         binding.progressFrame.animation = animation
         binding.progressFrame.visibility = View.GONE
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun seek() {
         val params = binding.current.layoutParams as FrameLayout.LayoutParams
         val pct = (params.leftMargin - dpToPx(15f)) / binding.bar.width.toFloat()
@@ -680,7 +655,6 @@ class BrowserActivity: AppCompatActivity() {
         var params: FrameLayout.LayoutParams? = null
         var leftMargin = -1
 
-        @RequiresApi(Build.VERSION_CODES.O)
         private fun moveCurrent(diffX: Int, event: MotionEvent) {
             val currentLocation = IntArray(2)
             val leftLocation = IntArray(2)
@@ -699,7 +673,6 @@ class BrowserActivity: AppCompatActivity() {
             seek()
         }
 
-        @RequiresApi(Build.VERSION_CODES.O)
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             if (v == null || event == null) {
                 return false
@@ -735,7 +708,6 @@ class BrowserActivity: AppCompatActivity() {
         var currentParams: FrameLayout.LayoutParams? = null
         var seek = false
 
-        @RequiresApi(Build.VERSION_CODES.O)
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             if (v == null || event == null) {
                 return false
@@ -823,7 +795,6 @@ class MainActivity : Activity() {
     private val displayMetrics: DisplayMetrics = DisplayMetrics()
     private lateinit var serviceIntent: Intent
 
-    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -831,7 +802,6 @@ class MainActivity : Activity() {
         startActivityForResult(mediaProjectionManager!!.createScreenCaptureIntent(), SCREEN_CAPTURE_PERMISSION_CODE)
     }
 
-    @RequiresApi(Build.VERSION_CODES.M)
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == SCREEN_CAPTURE_PERMISSION_CODE) {
@@ -896,7 +866,6 @@ class MainActivity : Activity() {
         private var recordingName = ""
 
         @SuppressLint("ClickableViewAccessibility")
-        @RequiresApi(Build.VERSION_CODES.O)
         override fun onCreate() {
             super.onCreate()
 
@@ -1070,58 +1039,6 @@ class MainActivity : Activity() {
             }
             // end layout
 
-            // begin form (not in use)
-            LinearLayout(this).let {
-                form = it
-                form.visibility = LinearLayout.GONE
-                form.setBackgroundColor(resources.getColor(R.color.white))
-
-                EditText(this).let { editText ->
-                    editText.tag = "name"
-                    val params = LinearLayout.LayoutParams(
-                        0,
-                        LayoutParams.MATCH_PARENT,
-                        1.0f
-                    )
-                    params.leftMargin = dpToPx(50f).toInt()
-                    editText.layoutParams = params
-                    editText.inputType = InputType.TYPE_CLASS_TEXT
-                    form.addView(editText)
-                    // Keyboard issues...
-                }
-                Button(this).let { button ->
-                    button.tag = "record"
-                    val params = LinearLayout.LayoutParams(
-                        LayoutParams.WRAP_CONTENT,
-                        LayoutParams.MATCH_PARENT
-                    )
-                    params.leftMargin = dpToPx(10f).toInt()
-                    params.rightMargin = dpToPx(25f).toInt()
-                    params.topMargin = dpToPx(10f).toInt()
-                    params.bottomMargin = dpToPx(10f).toInt()
-                    button.layoutParams = params
-                    button.text = "Record"
-                    button.setTextColor(Color.parseColor("#ffffff"))
-                    button.setBackgroundColor(resources.getColor(R.color.red))
-                    form.addView(button)
-                }
-                ImageView(this).let { imageView ->
-                    imageView.tag = "close"
-                    val params = LinearLayout.LayoutParams(
-                        LayoutParams.WRAP_CONTENT,
-                        LayoutParams.WRAP_CONTENT
-                    )
-                    params.leftMargin = dpToPx(25f).toInt()
-                    params.rightMargin = dpToPx(15f).toInt()
-                    params.gravity = Gravity.CENTER
-                    imageView.layoutParams = params
-                    imageView.setImageResource(R.drawable.ic_baseline_close_24)
-                    form.addView(imageView)
-                }
-                //overlay.addView(form)
-            }
-            // end form
-
             // begin hide notice
             TextView(this, null,
                     LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).let { textView ->
@@ -1161,11 +1078,13 @@ class MainActivity : Activity() {
             exit()
         }
 
-        class PanelLayout(context: Context, var stopRecording: ((Boolean) -> Unit)) : RelativeLayout(context) {
+        inner class PanelLayout(context: Context, var stopRecording: ((Boolean) -> Unit)) : RelativeLayout(context) {
             var lastTouch: Long = 0
             override fun onTouchEvent(event: MotionEvent?): Boolean {
                 if (lastTouch > 0 && System.currentTimeMillis() - lastTouch < 1000) {
                     stopRecording(true)
+                    windowParams.screenOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    windowManager.updateViewLayout(this, windowParams)
                 }
                 lastTouch = System.currentTimeMillis()
                 return super.onTouchEvent(event)
@@ -1239,7 +1158,6 @@ class MainActivity : Activity() {
         private fun startTimerRecording() {
             var time = 0
             handler.postDelayed(object : Runnable {
-                @RequiresApi(Build.VERSION_CODES.O)
                 override fun run() {
                     time += 100
                     timeView.text = Utils.getTime(time)

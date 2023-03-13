@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.screenrecorder"
-        minSdk 24
+        minSdk 27
         targetSdk 33
         versionCode 1
         versionName "1.0"
@@ -36,7 +36,6 @@ android {
 }
 
 dependencies {
-
     implementation 'androidx.core:core-ktx:1.7.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.8.0'
@@ -46,10 +45,8 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-
     // implementation 'com.arthenica:mobile-ffmpeg-full:4.4'
     // https://github.com/tanersener/mobile-ffmpeg/issues/127
     implementation 'com.arthenica:mobile-ffmpeg-min-gpl:4.4'
-
     implementation 'org.florescu.android.rangeseekbar:rangeseekbar-library:0.3.0'
 }

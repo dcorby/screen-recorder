@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools" >
-
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -14,56 +12,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ScreenRecorder"
         tools:targetApi="33" >
-
-        <!--
-        <activity
-            android:name=".PermissionActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            android:excludeFromRecents="true">
-        </activity>
-        -->
-        <!-- Why this theme? finish() bug in activity...
-        https://stackoverflow.com/questions/32169303/activity-did-not-call-finish-api-23
-        -->
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" >
-            <!--
-            android:theme="@android:style/Theme.NoDisplay"
-            -->
-
-            <!--
-            https://commonsware.com/blog/2015/11/02/psa-android-6p0-theme.nodisplay-regression.html
-            https://stackoverflow.com/questions/34006284/an-activity-without-a-ui-must-call-finish-before-onresume-completes
-            https://stackoverflow.com/questions/10909683/launch-android-application-without-main-activity-and-start-service-on-launching
-            Theme.NoDisplay wouldn't show service either
-            -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
-
         <service
             android:name=".MainActivity$Overlay"
             android:enabled="true" />
-
         <activity
             android:name=".BrowserActivity"
             android:exported="true"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.ScreenRecorder.NoActionBar">
         </activity>
-
     </application>
 </manifest>
